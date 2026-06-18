@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 
 const ASSESSORS = [
   { code: 'A73614', name: 'Bruno Bruel',           squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
@@ -32,10 +32,11 @@ const ASSESSORS = [
   { code: 'A33788', name: 'Nicolas Gotz',          squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
 ]
 
-const POINTS = { R1: 30, R2: 50, Venda: 100 }
-const META   = { R1: 4,  R2: 4,  Venda: 2  }
-const PREMIO = { bronze: 150, prata: 300, ouro: 500 }
-const LS_KEY = 'insurance_day_v1'
+const POINTS  = { R1: 30, R2: 50, Venda: 100 }
+const META    = { R1: 4,  R2: 4,  Venda: 2   }
+const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
+const LS_KEY  = 'insurance_day_v1'
+const REFRESH = 60 // segundos
 
 const loadRecords = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]') } catch { return [] } }
 const saveRecords = (r) => localStorage.setItem(LS_KEY, JSON.stringify(r))
@@ -116,6 +117,35 @@ function MeteorBg() {
   return <canvas ref={ref} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
 }
 
+// ── Contador regressivo com barra de progresso ────────────────────────────────
+function LiveBadge({ countdown, onRefresh }) {
+  const pct = ((REFRESH - countdown) / REFRESH) * 100
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* indicador ao vivo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#10b98118', border: '1px solid #10b98144', borderRadius: 20, padding: '4px 10px' }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'livePulse 1.2s ease-in-out infinite' }} />
+        <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>AO VIVO</span>
+      </div>
+      {/* countdown + barra */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 52 }}>
+        <span style={{ color: '#555', fontSize: 10 }}>atualiza em</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ width: 36, height: 4, background: '#ffffff0f', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: '#d4af37', borderRadius: 4, transition: 'width 1s linear' }} />
+          </div>
+          <span style={{ color: '#d4af37', fontSize: 11, fontWeight: 700, minWidth: 20 }}>{countdown}s</span>
+        </div>
+      </div>
+      {/* botão atualizar agora */}
+      <button onClick={onRefresh}
+        style={{ background: '#ffffff0f', border: '1px solid #ffffff18', borderRadius: 8, color: '#888', fontSize: 11, padding: '4px 8px', cursor: 'pointer' }}>
+        ↻
+      </button>
+    </div>
+  )
+}
+
 function Avatar({ name, size = 56, border = '#444', glow = false }) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
   const colors = ['#1d4ed8','#7c3aed','#c2410c','#065f46','#a16207','#0e7490']
@@ -161,6 +191,54 @@ const S = {
   btnSm:    { padding: '8px 14px', border: 'none', borderRadius: 8, color: '#ccc', fontWeight: 600, fontSize: 12, cursor: 'pointer' },
 }
 
+// ── Hook: sincronização em tempo real ─────────────────────────────────────────
+function useRealtimeRecords() {
+  const [records, setRecords] = useState(() => loadRecords())
+  const [countdown, setCountdown] = useState(REFRESH)
+  const [lastUpdate, setLastUpdate] = useState(new Date())
+
+  const sync = useCallback(() => {
+    const fresh = loadRecords()
+    setRecords(fresh)
+    setLastUpdate(new Date())
+    setCountdown(REFRESH)
+  }, [])
+
+  // polling a cada 60s
+  useEffect(() => {
+    const interval = setInterval(sync, REFRESH * 1000)
+    return () => clearInterval(interval)
+  }, [sync])
+
+  // countdown tick a cada 1s
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setCountdown(prev => (prev <= 1 ? REFRESH : prev - 1))
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [])
+
+  // sync imediato ao receber evento de outra aba (mesmo dispositivo)
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === LS_KEY) sync()
+    }
+    window.addEventListener('storage', e => onStorage(e))
+    return () => window.removeEventListener('storage', onStorage)
+  }, [sync])
+
+  const addRecord = useCallback((updated) => {
+    saveRecords(updated)
+    setRecords(updated)
+    setLastUpdate(new Date())
+    setCountdown(REFRESH)
+  }, [])
+
+  return { records, addRecord, countdown, lastUpdate, sync }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 function LoginScreen({ onLogin }) {
   const [q, setQ] = useState('')
   const [sel, setSel] = useState(null)
@@ -172,11 +250,12 @@ function LoginScreen({ onLogin }) {
       ).slice(0, 8)
     : []
   const pick = (a) => { setSel(a); setQ(a.name); setErr('') }
-  const go = () => { if (!sel) { setErr('Selecione um assessor da lista'); return } onLogin(sel) }
+  const go   = () => { if (!sel) { setErr('Selecione um assessor da lista'); return } onLogin(sel) }
   return (
     <div style={S.page}>
       <style>{`
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
         @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
       <MeteorBg />
@@ -228,7 +307,7 @@ function LoginScreen({ onLogin }) {
 
 function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
   const [loading, setLoading] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [toast, setToast]     = useState(null)
   const confRef = useRef(null)
   const myRecs  = records.filter(r => r.code === user.code)
   const myR1    = myRecs.filter(r => r.type === 'R1').length
@@ -239,11 +318,11 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
   const showToast = (msg, ok) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000) }
   const register = (type) => {
     setLoading(true)
-    const rec = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
+    const rec     = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
     const updated = [...records, rec]
     onAdd(updated)
     if (confRef.current) burst(confRef.current, type === 'Venda')
-    showToast('\u2705 ' + type + ' registrado com sucesso!', true)
+    showToast('✅ ' + type + ' registrado com sucesso!', true)
     setLoading(false)
   }
   const btnTypes = [
@@ -332,7 +411,7 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
   )
 }
 
-function RankingScreen({ user, records, onGoRegister, onLogout }) {
+function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegister, onLogout }) {
   const confRef  = useRef(null)
   const ranking  = computeRanking(records)
   const top5     = ranking.slice(0, 5)
@@ -342,9 +421,11 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
   const totalR1  = ranking.reduce((s, a) => s + a.R1, 0)
   const totalR2  = ranking.reduce((s, a) => s + a.R2, 0)
   const totalV   = ranking.reduce((s, a) => s + a.Venda, 0)
+
   useEffect(() => {
     if (confRef.current && ranking[0] && ranking[0].pts > 0) burst(confRef.current, true)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const medalBorder = ['#d4af37','#c0c0c0','#cd7f32','#444','#444']
   const medalGlow   = [true, false, false, false, false]
   const medalLabel  = ['🥇 1º','🥈 2º','🥉 3º','4º','5º']
@@ -353,12 +434,19 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
   const podiumPad   = ['32px 0 0','48px 0 0','16px 0 0']
   const cw = window.innerWidth
   const ch = window.innerHeight
+
+  const updatedStr = lastUpdate
+    ? lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '--'
+
   return (
     <div style={S.page}>
       <MeteorBg />
       <canvas ref={confRef} style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', width: '100%', height: '100%' }} width={cw} height={ch} />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 700, margin: '0 auto', padding: '24px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#d4af37', letterSpacing: 2 }}>🛡️ INSURANCE DAY</h1>
             <p style={{ margin: 0, fontSize: 11, color: '#555', letterSpacing: 1 }}>CAMPANHA 4-4-2 · JUNHO & JULHO 2026</p>
@@ -368,6 +456,14 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
             <button style={{ ...S.btnSm, background: '#ffffff18' }} onClick={onLogout}>Sair</button>
           </div>
         </div>
+
+        {/* Barra ao vivo */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '8px 14px', background: '#ffffff06', borderRadius: 10, border: '1px solid #ffffff0a' }}>
+          <LiveBadge countdown={countdown} onRefresh={onSync} />
+          <span style={{ color: '#333', fontSize: 11 }}>atualizado às {updatedStr}</span>
+        </div>
+
+        {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 24 }}>
           {[
             { label: 'TOTAL PONTOS',  val: totalPts, color: '#d4af37' },
@@ -381,6 +477,8 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
             </div>
           ))}
         </div>
+
+        {/* Minha posição */}
         {user && myData && (
           <div style={{ ...S.card, background: '#d4af3718', border: '1px solid #d4af3744', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#d4af37', minWidth: 40 }}>{myRank}º</div>
@@ -395,6 +493,8 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
             </div>
           </div>
         )}
+
+        {/* Pódio */}
         <div style={{ fontSize: 12, color: '#888', letterSpacing: 2, textAlign: 'center', marginBottom: 20 }}>🏆 TOP 5 ASSESSORES</div>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, marginBottom: 24 }}>
           {podiumOrder.map((idx, vi) => {
@@ -424,6 +524,8 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
             )
           })}
         </div>
+
+        {/* 4º e 5º */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
           {[3, 4].map(idx => {
             const a = top5[idx]
@@ -445,6 +547,8 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
             )
           })}
         </div>
+
+        {/* Todos */}
         <details style={S.card}>
           <summary style={{ color: '#888', fontSize: 13, cursor: 'pointer', padding: '4px 0' }}>📋 Ver todos os {ranking.length} assessores</summary>
           <div style={{ marginTop: 14 }}>
@@ -477,18 +581,24 @@ function RankingScreen({ user, records, onGoRegister, onLogout }) {
   )
 }
 
+// ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen]   = useState('login')
-  const [user, setUser]       = useState(null)
-  const [records, setRecords] = useState(() => loadRecords())
-  const handleLogin   = (assessor) => { setUser(assessor); setScreen('register') }
-  const handleAdd     = (updated)  => { setRecords(updated); saveRecords(updated) }
-  const handleLogout  = ()         => { setUser(null); setScreen('login') }
+  const [screen, setScreen] = useState('login')
+  const [user, setUser]     = useState(null)
+  const { records, addRecord, countdown, lastUpdate, sync } = useRealtimeRecords()
+
+  const handleLogin  = (assessor) => { setUser(assessor); setScreen('register') }
+  const handleLogout = ()         => { setUser(null); setScreen('login') }
+
   return (
     <>
+      <style>{`
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
+      `}</style>
       {screen === 'login'    && <LoginScreen onLogin={handleLogin} />}
-      {screen === 'register' && <RegisterScreen user={user} records={records} onAdd={handleAdd} onGoRanking={() => setScreen('ranking')} onLogout={handleLogout} />}
-      {screen === 'ranking'  && <RankingScreen  user={user} records={records} onGoRegister={() => setScreen('register')} onLogout={handleLogout} />}
+      {screen === 'register' && <RegisterScreen user={user} records={records} onAdd={addRecord} onGoRanking={() => setScreen('ranking')} onLogout={handleLogout} />}
+      {screen === 'ranking'  && <RankingScreen  user={user} records={records} countdown={countdown} lastUpdate={lastUpdate} onSync={sync} onGoRegister={() => setScreen('register')} onLogout={handleLogout} />}
     </>
   )
 }
