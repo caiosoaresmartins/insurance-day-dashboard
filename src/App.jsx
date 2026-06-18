@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const ASSESSORS = [
   { code:'A73614', name:'Bruno Bruel',           squad:'Alavancados',  color:'#2563eb' },
@@ -36,13 +36,12 @@ const PTS  = { R1:30, R2:50, Venda:100 };
 const META = { R1:4, R2:4, Venda:2 };
 const TICK = 15;
 const GOLD = '#d4af37';
-const BG   = '#080808';
+const BG   = '#04040f';
 
 async function kvFetch() {
   const r = await fetch('/api/kv');
   if (!r.ok) throw new Error('Falha ao buscar dados');
   const d = await r.json();
-  // FIX #2: garante array no frontend tambem
   return Array.isArray(d.records) ? d.records : [];
 }
 
@@ -59,7 +58,6 @@ async function kvAdd(user, type) {
 function buildRanking(records) {
   const m = {};
   ASSESSORS.forEach(a => { m[a.code] = { ...a, R1:0, R2:0, Venda:0, pts:0 }; });
-  // FIX #2: garante que records e array antes de iterar
   const list = Array.isArray(records) ? records : [];
   list.forEach(r => {
     if (m[r.code]) { m[r.code][r.type] = (m[r.code][r.type]||0) + 1; m[r.code].pts += (PTS[r.type]||0); }
@@ -94,7 +92,6 @@ function useKV() {
     setError(null);
     try {
       const data = await kvFetch();
-      // FIX #2: sempre seta array
       setRecords(Array.isArray(data) ? data : []);
       setLastUpdate(new Date());
       setCountdown(TICK);
@@ -121,7 +118,90 @@ function useKV() {
   return { records, loading, error, countdown, lastUpdate, load, add };
 }
 
-const CARD = { background:'#111118', border:'1px solid #1f1f2e', borderRadius:12, padding:16 };
+// ====== GALAXY BACKGROUND ======
+function GalaxyBg() {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W = window.innerWidth;
+    let H = document.documentElement.scrollHeight || window.innerHeight;
+    canvas.width  = W;
+    canvas.height = H;
+
+    // gera estrelas
+    const stars = Array.from({length: 220}, () => ({
+      x:    Math.random() * W,
+      y:    Math.random() * H,
+      r:    Math.random() * 1.4 + 0.2,
+      a:    Math.random(),
+      spd:  Math.random() * 0.004 + 0.001,
+      dir:  Math.random() > 0.5 ? 1 : -1,
+      col:  ['#ffffff','#d4af37','#a78bfa','#60a5fa','#f9a8d4'][Math.floor(Math.random()*5)],
+    }));
+
+    // nebulas
+    const nebulas = [
+      { x: W*0.15, y: H*0.12, rx:180, ry:100, col:'rgba(99,51,180,0.07)' },
+      { x: W*0.80, y: H*0.08, rx:220, ry:120, col:'rgba(212,175,55,0.05)' },
+      { x: W*0.50, y: H*0.22, rx:260, ry:130, col:'rgba(29,78,216,0.06)' },
+      { x: W*0.25, y: H*0.40, rx:150, ry: 80, col:'rgba(99,51,180,0.04)' },
+      { x: W*0.75, y: H*0.35, rx:200, ry:100, col:'rgba(212,175,55,0.04)' },
+    ];
+
+    let raf;
+    function draw() {
+      ctx.clearRect(0,0,W,H);
+
+      // nebulas
+      nebulas.forEach(n => {
+        const g = ctx.createRadialGradient(n.x,n.y,0, n.x,n.y,n.rx);
+        g.addColorStop(0, n.col);
+        g.addColorStop(1, 'transparent');
+        ctx.save();
+        ctx.scale(1, n.ry/n.rx);
+        ctx.beginPath();
+        ctx.arc(n.x, n.y*(n.rx/n.ry), n.rx, 0, Math.PI*2);
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // estrelas
+      stars.forEach(s => {
+        s.a += s.spd * s.dir;
+        if (s.a > 1 || s.a < 0.1) s.dir *= -1;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.fillStyle = s.col;
+        ctx.globalAlpha = s.a;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      raf = requestAnimationFrame(draw);
+    }
+    draw();
+
+    const onResize = () => {
+      W = window.innerWidth;
+      H = document.documentElement.scrollHeight || window.innerHeight;
+      canvas.width = W; canvas.height = H;
+    };
+    window.addEventListener('resize', onResize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
+  }, []);
+
+  return (
+    <canvas ref={canvasRef} style={{
+      position:'fixed', top:0, left:0, width:'100%', height:'100%',
+      pointerEvents:'none', zIndex:0,
+    }} />
+  );
+}
+
+const CARD = { background:'rgba(10,10,25,0.85)', border:'1px solid #1f1f3a', borderRadius:12, padding:16, backdropFilter:'blur(6px)' };
 
 function Av({ name, size=56, ring=GOLD, glow=false }) {
   const bgs = ['#1d4ed8','#7c3aed','#c2410c','#065f46','#92400e','#0e7490','#374151'];
@@ -132,7 +212,7 @@ function Av({ name, size=56, ring=GOLD, glow=false }) {
       border:'3px solid '+ring, display:'flex', alignItems:'center',
       justifyContent:'center', color:'#fff', fontWeight:800,
       fontSize:size*0.32, flexShrink:0, letterSpacing:1,
-      boxShadow: glow ? '0 0 20px '+ring+'88,0 0 40px '+ring+'33' : 'none',
+      boxShadow: glow ? '0 0 24px '+ring+'99, 0 0 48px '+ring+'44' : '0 0 8px '+ring+'33',
     }}>{initials(name)}</div>
   );
 }
@@ -150,18 +230,14 @@ function Toast({ msg, ok }) {
 
 // ====== TAB RANKING ======
 function TabRanking({ records, loading }) {
-  // FIX #4: estado reativo para expandir lista
   const [showAll, setShowAll] = useState(false);
-
   const rank = buildRanking(records);
   const top5 = rank.slice(0,5);
-
-  const totalR1    = rank.reduce((s,a)=>s+a.R1,0);
-  const totalR2    = rank.reduce((s,a)=>s+a.R2,0);
-  const totalVenda = rank.reduce((s,a)=>s+a.Venda,0);
-  const metaTotal  = ASSESSORS.length * META.R1;
+  const totalR1     = rank.reduce((s,a)=>s+a.R1,0);
+  const totalR2     = rank.reduce((s,a)=>s+a.R2,0);
+  const totalVenda  = rank.reduce((s,a)=>s+a.Venda,0);
+  const metaTotal   = ASSESSORS.length * META.R1;
   const atingimento = metaTotal>0 ? Math.round((totalR1/metaTotal)*100) : 0;
-
   const podiumOrder  = [1,0,2];
   const podiumHeight = [180,240,150];
   const podiumAvSize = [72,96,64];
@@ -172,14 +248,13 @@ function TabRanking({ records, loading }) {
 
   return (
     <div style={{maxWidth:760,margin:'0 auto',padding:'24px 0'}}>
-
       {/* HEADER METRICAS */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:32}}>
         {[
-          {label:'R1 REALIZADAS', val:totalR1,           color:'#e5e7eb'},
-          {label:'R2 REALIZADAS', val:totalR2,           color:'#e5e7eb'},
-          {label:'VENDAS',        val:totalVenda,        color:'#e5e7eb'},
-          {label:'ATINGIMENTO',   val:atingimento+'%',   color:'#22c55e'},
+          {label:'R1 REALIZADAS', val:totalR1,          color:'#e5e7eb'},
+          {label:'R2 REALIZADAS', val:totalR2,          color:'#e5e7eb'},
+          {label:'VENDAS',        val:totalVenda,       color:'#e5e7eb'},
+          {label:'ATINGIMENTO',   val:atingimento+'%',  color:'#22c55e'},
         ].map(m=>(
           <div key={m.label} style={{...CARD,textAlign:'center',padding:'20px 12px'}}>
             <div style={{color:'#555',fontSize:10,letterSpacing:2,marginBottom:10}}>{m.label}</div>
@@ -194,14 +269,39 @@ function TabRanking({ records, loading }) {
 
       {/* PODIO */}
       <div style={{
-        position:'relative', background:'linear-gradient(180deg,#0a0a0a 0%,#111118 100%)',
+        position:'relative',
+        background:'linear-gradient(180deg, rgba(5,5,20,0.95) 0%, rgba(10,10,30,0.98) 100%)',
         borderRadius:20, padding:'40px 16px 0', marginBottom:24,
-        minHeight:340, overflow:'hidden', border:'1px solid #1f1f2e',
+        minHeight:340, overflow:'hidden',
+        border:'1px solid rgba(212,175,55,0.15)',
+        boxShadow:'0 0 60px rgba(99,51,180,0.15), 0 0 30px rgba(212,175,55,0.05)',
       }}>
-        <div style={{position:'absolute',left:-20,bottom:0,width:120,height:180,background:'linear-gradient(135deg,#1a1a1a,#0d0d0d)',borderRadius:'30% 60% 40% 20%',opacity:.6}} />
-        <div style={{position:'absolute',right:10,bottom:0,width:100,height:150,background:'linear-gradient(135deg,#1a1a1a,#0d0d0d)',borderRadius:'20% 40% 60% 30%',opacity:.5}} />
-        <div style={{position:'absolute',left:80,bottom:0,width:70,height:100,background:'linear-gradient(135deg,#161616,#0a0a0a)',borderRadius:'40% 20% 30% 60%',opacity:.4}} />
-        <div style={{position:'absolute',right:120,bottom:0,width:80,height:120,background:'linear-gradient(135deg,#141414,#0c0c0c)',borderRadius:'30% 50% 20% 40%',opacity:.4}} />
+        {/* estrelas decorativas no podio */}
+        {[...Array(30)].map((_,i) => (
+          <div key={i} style={{
+            position:'absolute',
+            left: (i*37 % 100)+'%',
+            top:  (i*53 % 60)+'%',
+            width: i%5===0 ? 2 : 1,
+            height: i%5===0 ? 2 : 1,
+            borderRadius:'50%',
+            background: i%3===0 ? GOLD : i%3===1 ? '#a78bfa' : '#fff',
+            opacity: 0.3 + (i%4)*0.15,
+            pointerEvents:'none',
+          }} />
+        ))}
+        {/* nebula roxa no fundo do podio */}
+        <div style={{
+          position:'absolute', top:'10%', left:'50%', transform:'translateX(-50%)',
+          width:400, height:200,
+          background:'radial-gradient(ellipse, rgba(99,51,180,0.12) 0%, transparent 70%)',
+          pointerEvents:'none',
+        }} />
+        {/* pedras/montanhas no rodape */}
+        <div style={{position:'absolute',left:-20,bottom:0,width:160,height:200,background:'linear-gradient(135deg,#0d0d1a,#06060f)',borderRadius:'20% 50% 30% 10%',opacity:.9}} />
+        <div style={{position:'absolute',right:0,bottom:0,width:140,height:170,background:'linear-gradient(135deg,#0a0a18,#050510)',borderRadius:'40% 10% 50% 20%',opacity:.9}} />
+        <div style={{position:'absolute',left:100,bottom:0,width:90,height:120,background:'linear-gradient(135deg,#0c0c1c,#070712)',borderRadius:'30% 40% 20% 50%',opacity:.8}} />
+        <div style={{position:'absolute',right:110,bottom:0,width:110,height:140,background:'linear-gradient(135deg,#0b0b1a,#060610)',borderRadius:'50% 20% 40% 30%',opacity:.8}} />
 
         <div style={{display:'flex',alignItems:'flex-end',justifyContent:'center',gap:0,position:'relative',zIndex:2}}>
           {podiumOrder.map((idx,vi) => {
@@ -215,36 +315,32 @@ function TabRanking({ records, loading }) {
             return (
               <div key={a.code} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',maxWidth:200}}>
                 <div style={{textAlign:'center',marginBottom:10,padding:'0 8px'}}>
-                  <div style={{color:isFirst?GOLD:'#e5e7eb',fontWeight:800,fontSize:isFirst?14:12,letterSpacing:2,textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                    {a.name}
-                  </div>
+                  <div style={{color:isFirst?GOLD:'#e5e7eb',fontWeight:800,fontSize:isFirst?14:12,letterSpacing:2,textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',textShadow:isFirst?'0 0 20px '+GOLD+'88':'none'}}>{a.name}</div>
                   <div style={{color:'#555',fontSize:10,letterSpacing:1,marginTop:2}}>{a.squad.toUpperCase()}</div>
                   {pr && <div style={{color:pr.hex,fontSize:10,fontWeight:700,marginTop:3}}>{pr.label} R${pr.val}</div>}
                 </div>
                 <div style={{position:'relative',marginBottom:0}}>
                   <Av name={a.name} size={avSize} ring={ringCol} glow={isFirst} />
-                  <div style={{position:'absolute',bottom:-8,left:'50%',transform:'translateX(-50%)',background:ringCol,color:'#000',borderRadius:'50%',width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:11}}>
-                    {idx+1}
-                  </div>
+                  <div style={{position:'absolute',bottom:-8,left:'50%',transform:'translateX(-50%)',background:ringCol,color:'#000',borderRadius:'50%',width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:11}}>{idx+1}</div>
                 </div>
-                <div style={{marginTop:16,width:'100%',height:colH,background:'linear-gradient(180deg,#1a1a2e 0%,#0f0f18 100%)',border:'1px solid '+(isFirst?GOLD+'44':'#2a2a3e'),borderBottom:'none',borderRadius:'8px 8px 0 0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'16px 8px',boxShadow:isFirst?'0 -4px 20px '+GOLD+'22':'none'}}>
+                <div style={{marginTop:16,width:'100%',height:colH,background:'linear-gradient(180deg,rgba(20,20,50,0.9) 0%,rgba(8,8,25,0.95) 100%)',border:'1px solid '+(isFirst?GOLD+'55':'rgba(212,175,55,0.1)'),borderBottom:'none',borderRadius:'8px 8px 0 0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'16px 8px',boxShadow:isFirst?'0 -8px 30px '+GOLD+'22, inset 0 1px 0 '+GOLD+'22':'none'}}>
                   <div style={{display:'flex',gap:20}}>
                     <div style={{textAlign:'center'}}>
                       <div style={{color:'#e5e7eb',fontSize:isFirst?36:28,fontWeight:800,lineHeight:1}}>{a.R1}</div>
-                      <div style={{color:'#555',fontSize:9,letterSpacing:1,marginTop:4}}>R1</div>
+                      <div style={{color:'#444',fontSize:9,letterSpacing:1,marginTop:4}}>R1</div>
                     </div>
                     <div style={{textAlign:'center'}}>
                       <div style={{color:'#e5e7eb',fontSize:isFirst?36:28,fontWeight:800,lineHeight:1}}>{a.R2}</div>
-                      <div style={{color:'#555',fontSize:9,letterSpacing:1,marginTop:4}}>R2</div>
+                      <div style={{color:'#444',fontSize:9,letterSpacing:1,marginTop:4}}>R2</div>
                     </div>
                     {a.Venda>0 && (
                       <div style={{textAlign:'center'}}>
                         <div style={{color:'#10b981',fontSize:isFirst?36:28,fontWeight:800,lineHeight:1}}>{a.Venda}</div>
-                        <div style={{color:'#555',fontSize:9,letterSpacing:1,marginTop:4}}>VENDA</div>
+                        <div style={{color:'#444',fontSize:9,letterSpacing:1,marginTop:4}}>VENDA</div>
                       </div>
                     )}
                   </div>
-                  <div style={{color:GOLD,fontWeight:800,fontSize:isFirst?18:14,marginTop:10}}>{a.pts} pts</div>
+                  <div style={{color:GOLD,fontWeight:800,fontSize:isFirst?18:14,marginTop:10,textShadow:'0 0 10px '+GOLD+'66'}}>{a.pts} pts</div>
                 </div>
               </div>
             );
@@ -260,7 +356,7 @@ function TabRanking({ records, loading }) {
           const ringCol = idx===3?'#888':'#666';
           return (
             <div key={a.code} style={{...CARD,display:'flex',alignItems:'center',gap:12}}>
-              <div style={{color:'#444',fontWeight:800,fontSize:18,minWidth:28}}>{idx+1}</div>
+              <div style={{color:'#333',fontWeight:800,fontSize:18,minWidth:28}}>{idx+1}</div>
               <Av name={a.name} size={44} ring={ringCol} />
               <div style={{flex:1,minWidth:0}}>
                 <div style={{color:'#e5e7eb',fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.name}</div>
@@ -278,17 +374,14 @@ function TabRanking({ records, loading }) {
         })}
       </div>
 
-      {/* FIX #4: botao reativo com estado React em vez de <details> */}
+      {/* VER TODOS */}
       <div style={CARD}>
-        <button
-          onClick={() => setShowAll(p => !p)}
-          style={{background:'none',border:'none',color:'#555',fontSize:12,cursor:'pointer',letterSpacing:1,padding:'4px 0',width:'100%',textAlign:'left'}}
-        >
-          {showAll ? '&#9650; OCULTAR' : '&#9660; VER TODOS OS '+rank.length+' ASSESSORES'}
+        <button onClick={()=>setShowAll(p=>!p)} style={{background:'none',border:'none',color:'#555',fontSize:12,cursor:'pointer',letterSpacing:1,padding:'4px 0',width:'100%',textAlign:'left'}}>
+          {showAll ? '▲ OCULTAR' : '▼ VER TODOS OS '+rank.length+' ASSESSORES'}
         </button>
         {showAll && (
           <div style={{marginTop:14}}>
-            {rank.slice(5).map((a,i) => (
+            {rank.slice(5).map((a,i)=>(
               <div key={a.code} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #1a1a2e'}}>
                 <span style={{color:'#333',fontSize:12,minWidth:28,textAlign:'center'}}>{i+6}</span>
                 <Av name={a.name} size={32} ring={a.color} />
@@ -313,18 +406,16 @@ function TabRanking({ records, loading }) {
 
 // ====== TAB AO VIVO ======
 function TabAoVivo({ records, countdown, lastUpdate, load, loading, error }) {
-  // FIX #2: garante array antes de sort
   const list   = Array.isArray(records) ? records : [];
   const recent = [...list].sort((a,b)=>b.ts-a.ts).slice(0,40);
   const updStr = lastUpdate ? lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '--';
-
   return (
     <div style={{maxWidth:580,margin:'0 auto',padding:'24px 0'}}>
       <div style={{...CARD,marginBottom:16}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <span style={{width:10,height:10,borderRadius:'50%',background:'#10b981',display:'inline-block',animation:'livePulse 1.2s ease-in-out infinite'}} />
-            <span style={{color:'#10b981',fontWeight:700,fontSize:13,letterSpacing:1}}>AO VIVO · VERCEL KV</span>
+            <span style={{color:'#10b981',fontWeight:700,fontSize:13,letterSpacing:1}}>AO VIVO · UPSTASH KV</span>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             <span style={{color:'#555',fontSize:12}}>às {updStr}</span>
@@ -334,26 +425,14 @@ function TabAoVivo({ records, countdown, lastUpdate, load, loading, error }) {
               </div>
               <span style={{color:GOLD,fontSize:12,fontWeight:700,minWidth:20}}>{countdown}s</span>
             </div>
-            <button onClick={()=>load(false)} disabled={loading} style={{background:'#1f1f2e',border:'1px solid #2a2a3e',color:loading?'#333':'#888',borderRadius:8,padding:'5px 12px',cursor:loading?'default':'pointer',fontSize:13}}>
-              {loading?'⏳':'↻'}
-            </button>
+            <button onClick={()=>load(false)} disabled={loading} style={{background:'#1f1f2e',border:'1px solid #2a2a3e',color:loading?'#333':'#888',borderRadius:8,padding:'5px 12px',cursor:loading?'default':'pointer',fontSize:13}}>{loading?'⏳':'↻'}</button>
           </div>
         </div>
       </div>
-
-      {error && (
-        <div style={{...CARD,background:'#ef444410',border:'1px solid #ef444440',color:'#ef4444',fontSize:13,marginBottom:16}}>
-          ⚠️ {error}
-        </div>
-      )}
-
+      {error && <div style={{...CARD,background:'#ef444410',border:'1px solid #ef444440',color:'#ef4444',fontSize:13,marginBottom:16}}>⚠️ {error}</div>}
       <div style={{color:'#555',fontSize:11,letterSpacing:2,marginBottom:12}}>ÚLTIMOS REGISTROS</div>
-
-      {recent.length===0 && !loading && (
-        <div style={{...CARD,textAlign:'center',color:'#333',padding:40,fontSize:13}}>Nenhum registro ainda</div>
-      )}
-
-      {recent.map((r,i) => {
+      {recent.length===0 && !loading && <div style={{...CARD,textAlign:'center',color:'#333',padding:40,fontSize:13}}>Nenhum registro ainda</div>}
+      {recent.map((r,i)=>{
         const a = ASSESSORS.find(x=>x.code===r.code);
         const typeColor = r.type==='R1'?'#3b82f6':r.type==='R2'?'#eab308':'#10b981';
         return (
@@ -377,14 +456,9 @@ function TabLogin({ onLogin }) {
   const [q,setQ]     = useState('');
   const [sel,setSel] = useState(null);
   const [err,setErr] = useState('');
-
-  const list = q.length>=2
-    ? ASSESSORS.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.code.toLowerCase().includes(q.toLowerCase())).slice(0,7)
-    : [];
-
+  const list = q.length>=2 ? ASSESSORS.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.code.toLowerCase().includes(q.toLowerCase())).slice(0,7) : [];
   const pick = a => { setSel(a); setQ(a.name); setErr(''); };
   const go   = () => { if(!sel){setErr('Selecione um nome da lista'); return;} onLogin(sel); };
-
   return (
     <div style={{maxWidth:420,margin:'0 auto',padding:'40px 0'}}>
       <div style={{textAlign:'center',marginBottom:32}}>
@@ -394,17 +468,11 @@ function TabLogin({ onLogin }) {
       </div>
       <div style={CARD}>
         <label style={{display:'block',color:'#555',fontSize:11,marginBottom:8,letterSpacing:2}}>CÓDIGO XP OU NOME</label>
-        <input
-          autoFocus value={q}
-          onChange={e=>{setQ(e.target.value);setSel(null);}}
-          onKeyDown={e=>e.key==='Enter'&&go()}
-          placeholder="Ex: A98943 ou Israel Gusso"
-          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #1f1f2e',background:'#080810',color:'#e5e7eb',fontSize:14,outline:'none',boxSizing:'border-box'}}
-        />
+        <input autoFocus value={q} onChange={e=>{setQ(e.target.value);setSel(null);}} onKeyDown={e=>e.key==='Enter'&&go()} placeholder="Ex: A98943 ou Israel Gusso" style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #1f1f3a',background:'rgba(4,4,20,0.8)',color:'#e5e7eb',fontSize:14,outline:'none',boxSizing:'border-box'}} />
         {list.length>0 && (
-          <div style={{marginTop:4,borderRadius:8,border:'1px solid #1a1a2e',background:'#080810',overflow:'hidden'}}>
+          <div style={{marginTop:4,borderRadius:8,border:'1px solid #1a1a3a',background:'rgba(4,4,20,0.9)',overflow:'hidden'}}>
             {list.map(a=>(
-              <button key={a.code} onClick={()=>pick(a)} style={{width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #1a1a2e',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
+              <button key={a.code} onClick={()=>pick(a)} style={{width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #1a1a3a',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
                 <Av name={a.name} size={32} ring={a.color} />
                 <div>
                   <div style={{color:'#e5e7eb',fontSize:13,fontWeight:600,textTransform:'uppercase',letterSpacing:.5}}>{a.name}</div>
@@ -425,30 +493,24 @@ function TabLogin({ onLogin }) {
 function TabRegistrar({ user, records, add, onLogout }) {
   const [saving,setSaving] = useState(false);
   const [toast,setToast]   = useState(null);
-
-  // FIX #2: garante array
   const mine  = (Array.isArray(records)?records:[]).filter(r=>r.code===user.code);
   const myR1  = mine.filter(r=>r.type==='R1').length;
   const myR2  = mine.filter(r=>r.type==='R2').length;
   const myV   = mine.filter(r=>r.type==='Venda').length;
   const myPts = myR1*30+myR2*50+myV*100;
   const pr    = premio({R1:myR1,R2:myR2,Venda:myV});
-
   const showToast = (msg,ok) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
-
   const reg = async type => {
     setSaving(true);
     try { await add(user,type); showToast('✅ '+type+' registrado!',true); }
     catch(e) { showToast('❌ '+e.message,false); }
     finally { setSaving(false); }
   };
-
   const BTNS = [
     {type:'R1',    label:'R1',    sub:'Reunião Agendada',  pts:30,  color:'#3b82f6'},
     {type:'R2',    label:'R2',    sub:'Reunião Realizada', pts:50,  color:'#eab308'},
     {type:'Venda', label:'VENDA', sub:'Fechamento',        pts:100, color:'#10b981'},
   ];
-
   return (
     <div style={{maxWidth:500,margin:'0 auto',padding:'24px 0'}}>
       {toast && <Toast msg={toast.msg} ok={toast.ok} />}
@@ -462,17 +524,11 @@ function TabRegistrar({ user, records, add, onLogout }) {
         </div>
         <button onClick={onLogout} style={{background:'#ef444420',border:'1px solid #ef444440',color:'#ef4444',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12,fontWeight:700}}>SAIR</button>
       </div>
-
       <div style={{...CARD,marginBottom:16,textAlign:'center'}}>
         <div style={{color:'#555',fontSize:11,letterSpacing:2,marginBottom:4}}>SEUS PONTOS</div>
-        <div style={{color:GOLD,fontSize:52,fontWeight:800,lineHeight:1}}>{myPts}</div>
-        {pr && (
-          <div style={{marginTop:10,display:'inline-block',background:pr.hex+'22',border:'1px solid '+pr.hex,color:pr.hex,borderRadius:99,padding:'4px 16px',fontSize:12,fontWeight:700}}>
-            {pr.label} · R$ {pr.val}
-          </div>
-        )}
+        <div style={{color:GOLD,fontSize:52,fontWeight:800,lineHeight:1,textShadow:'0 0 20px '+GOLD+'66'}}>{myPts}</div>
+        {pr && <div style={{marginTop:10,display:'inline-block',background:pr.hex+'22',border:'1px solid '+pr.hex,color:pr.hex,borderRadius:99,padding:'4px 16px',fontSize:12,fontWeight:700}}>{pr.label} · R$ {pr.val}</div>}
       </div>
-
       <div style={{...CARD,marginBottom:16}}>
         <div style={{color:'#555',fontSize:11,letterSpacing:2,marginBottom:14}}>PROGRESSO 4-4-2</div>
         {[
@@ -485,17 +541,16 @@ function TabRegistrar({ user, records, add, onLogout }) {
               <span style={{color:'#aaa',fontSize:13}}>{m.type}</span>
               <span style={{color:m.color,fontWeight:800,fontSize:13}}>{m.val} / {m.max}</span>
             </div>
-            <div style={{background:'#1f1f2e',borderRadius:4,height:6,overflow:'hidden'}}>
-              <div style={{width:Math.min(100,(m.val/m.max)*100)+'%',height:'100%',background:m.color,borderRadius:4,transition:'width .5s ease'}} />
+            <div style={{background:'#1f1f3a',borderRadius:4,height:6,overflow:'hidden'}}>
+              <div style={{width:Math.min(100,(m.val/m.max)*100)+'%',height:'100%',background:m.color,borderRadius:4,transition:'width .5s ease',boxShadow:'0 0 8px '+m.color}} />
             </div>
           </div>
         ))}
       </div>
-
       <div style={{color:'#555',fontSize:11,letterSpacing:2,textAlign:'center',marginBottom:12}}>REGISTRAR</div>
       <div style={{display:'flex',gap:12,marginBottom:16}}>
         {BTNS.map(b=>(
-          <button key={b.type} disabled={saving} onClick={()=>reg(b.type)} style={{flex:1,padding:'18px 8px',borderRadius:12,background:b.color+'18',border:'2px solid '+b.color,color:'#fff',cursor:saving?'default':'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:6,opacity:saving?0.5:1,transition:'opacity .2s'}}>
+          <button key={b.type} disabled={saving} onClick={()=>reg(b.type)} style={{flex:1,padding:'18px 8px',borderRadius:12,background:b.color+'18',border:'2px solid '+b.color,color:'#fff',cursor:saving?'default':'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:6,opacity:saving?0.5:1,transition:'opacity .2s',backdropFilter:'blur(4px)'}}>
             <span style={{fontSize:24}}>{saving?'⏳':b.type==='R1'?'📅':b.type==='R2'?'✅':'💰'}</span>
             <span style={{fontWeight:800,fontSize:16,color:b.color,letterSpacing:1}}>{b.label}</span>
             <span style={{fontSize:11,color:'#555'}}>{b.sub}</span>
@@ -503,7 +558,6 @@ function TabRegistrar({ user, records, add, onLogout }) {
           </button>
         ))}
       </div>
-
       {mine.length>0 && (
         <div style={CARD}>
           <div style={{color:'#555',fontSize:11,letterSpacing:2,marginBottom:12}}>SEUS REGISTROS</div>
@@ -528,28 +582,34 @@ export default function App() {
   const [tab,setTab]   = useState('ranking');
   const [user,setUser] = useState(null);
   const kv = useKV();
-
   const TABS = [
     {id:'ranking',   label:'🏆 Ranking'},
     {id:'ao-vivo',   label:'🔴 Ao Vivo'},
     {id:'registrar', label:'＋ Registrar'},
   ];
-
   const login  = a  => { setUser(a); setTab('registrar'); };
   const logout = () => { setUser(null); setTab('ranking'); };
-
   return (
     <>
       <style>{`
         * { box-sizing:border-box; margin:0; padding:0; }
-        body { background:${BG}; color:#e5e7eb; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+        html, body { min-height:100vh; }
+        body {
+          background: ${BG};
+          color:#e5e7eb;
+          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        }
         button { font-family:inherit; }
         input  { font-family:inherit; }
         @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.8)} }
       `}</style>
-      <div style={{padding:'0 16px',maxWidth:800,margin:'0 auto'}}>
-        <div style={{padding:'14px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid #1a1a2e'}}>
-          <span style={{color:GOLD,fontWeight:800,fontSize:17,letterSpacing:3}}>🛡️ INSURANCE DAY</span>
+
+      {/* FUNDO GALAXIA */}
+      <GalaxyBg />
+
+      <div style={{position:'relative',zIndex:1,padding:'0 16px',maxWidth:800,margin:'0 auto'}}>
+        <div style={{padding:'14px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid rgba(212,175,55,0.15)'}}>
+          <span style={{color:GOLD,fontWeight:800,fontSize:17,letterSpacing:3,textShadow:'0 0 20px '+GOLD+'44'}}>🛡️ INSURANCE DAY</span>
           {user && (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <Av name={user.name} size={26} ring={user.color} />
@@ -557,7 +617,7 @@ export default function App() {
             </div>
           )}
         </div>
-        <div style={{display:'flex',gap:4,padding:'8px 0',borderBottom:'1px solid #1a1a2e',marginBottom:4}}>
+        <div style={{display:'flex',gap:4,padding:'8px 0',borderBottom:'1px solid rgba(212,175,55,0.1)',marginBottom:4}}>
           {TABS.map(t=>(
             <button key={t.id}
               onClick={()=>{ if(t.id==='registrar'&&!user){setTab('login');return;} setTab(t.id); }}
