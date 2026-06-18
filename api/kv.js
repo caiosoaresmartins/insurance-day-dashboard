@@ -1,18 +1,22 @@
 const KV_KEY = 'insurance_records_2026';
 
 async function kvGet(key) {
-  const url = process.env.KV_REST_API_URL + '/get/' + key;
+  const url = process.env.KV_REST_API_URL + '/get/' + encodeURIComponent(key);
   const res = await fetch(url, {
     headers: { Authorization: 'Bearer ' + process.env.KV_REST_API_TOKEN },
   });
-  if (!res.ok) return null;
+  if (!res.ok) return [];
   const data = await res.json();
-  if (!data.result) return null;
-  try { return JSON.parse(data.result); } catch(e) { return null; }
+  if (!data.result) return [];
+  try {
+    const parsed = JSON.parse(data.result);
+    // FIX #1: garante sempre array
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(_) { return []; }
 }
 
 async function kvSet(key, value) {
-  const url = process.env.KV_REST_API_URL + '/set/' + key;
+  const url = process.env.KV_REST_API_URL + '/set/' + encodeURIComponent(key);
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -38,7 +42,8 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const records = await kvGet(KV_KEY);
-      return res.status(200).json({ records: records || [] });
+      // FIX #2: sempre retorna array, nunca null
+      return res.status(200).json({ records: Array.isArray(records) ? records : [] });
     }
 
     if (req.method === 'POST') {
@@ -50,7 +55,8 @@ export default async function handler(req, res) {
         if (!record || !record.code || !record.type) {
           return res.status(400).json({ error: 'code e type obrigatorios' });
         }
-        const existing = (await kvGet(KV_KEY)) || [];
+        // FIX #1: kvGet ja garante array, push seguro
+        const existing = await kvGet(KV_KEY);
         const newRec = {
           id:    record.code + '_' + record.type + '_' + Date.now(),
           code:  record.code,
@@ -69,7 +75,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      return res.status(400).json({ error: 'action invalida' });
+      return res.status(400).json({ error: 'action invalida. Use add ou clear' });
     }
 
     return res.status(405).json({ error: 'Metodo nao permitido' });
