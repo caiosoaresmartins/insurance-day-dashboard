@@ -38,11 +38,14 @@ const META    = { R1: 4,  R2: 4,  Venda: 2 }
 const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
 const REFRESH = 5
 
+// Normaliza string para comparação robusta: NFC + lowercase + trim
+function normStr(s) {
+  return (s || '').normalize('NFC').toLowerCase().trim()
+}
+
 function normalizeNotionRecords(raw) {
   return raw.map(r => {
-    const found = ASSESSORS.find(
-      a => a.name.toLowerCase().trim() === r.name.toLowerCase().trim()
-    )
+    const found = ASSESSORS.find(a => normStr(a.name) === normStr(r.name))
     return found ? { ...r, code: found.code, squad: found.squad } : r
   }).filter(r => ASSESSORS.find(a => a.code === r.code))
 }
