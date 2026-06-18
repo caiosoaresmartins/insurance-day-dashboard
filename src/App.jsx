@@ -38,7 +38,6 @@ const META    = { R1: 4,  R2: 4,  Venda: 2 }
 const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
 const REFRESH = 5
 
-// Normaliza registros Notion para o formato interno
 function normalizeNotionRecords(raw) {
   return raw.map(r => {
     const found = ASSESSORS.find(
@@ -214,17 +213,29 @@ function useNotionRealtime() {
     }
   }, [])
 
+  // Carga inicial
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Polling com intervalo fixo — recriado a cada vez que fetchData muda
   useEffect(() => {
     const interval = setInterval(() => fetchData(true), REFRESH * 1000)
     return () => clearInterval(interval)
   }, [fetchData])
 
+  // Countdown visual
   useEffect(() => {
     const tick = setInterval(() => setCountdown(p => p <= 1 ? REFRESH : p - 1), 1000)
     return () => clearInterval(tick)
   }, [])
+
+  // Refresh imediato ao voltar para a aba (corrige throttle de browser em background)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchData(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [fetchData])
 
   const addOptimistic = useCallback(async (user, type) => {
     const temp = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
@@ -239,7 +250,7 @@ function useNotionRealtime() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LoginScreen({ onLogin }) {
+function LoginScreen({ onLogin, onBack }) {
   const [q, setQ]     = useState('')
   const [sel, setSel] = useState(null)
   const [err, setErr] = useState('')
@@ -290,6 +301,11 @@ function LoginScreen({ onLogin }) {
         )}
         {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{err}</div>}
         <button style={{ ...S.btn, marginTop: 24 }} onClick={go}>Entrar no Insurance Day →</button>
+        {onBack && (
+          <button style={{ ...S.btnSm, background: 'transparent', width: '100%', marginTop: 12, color: '#555' }} onClick={onBack}>
+            ← Voltar ao ranking
+          </button>
+        )}
       </div>
     </div>
   )
@@ -399,7 +415,7 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout, saving })
   )
 }
 
-function RankingScreen({ user, records, loading, error, countdown, lastUpdate, onSync, onGoRegister, onLogout }) {
+function RankingScreen({ user, records, loading, error, countdown, lastUpdate, onSync, onGoRegister, onLogin, onLogout }) {
   const confRef = useRef(null)
   const ranking = computeRanking(records)
   const top5    = ranking.slice(0, 5)
@@ -435,8 +451,16 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
             <p style={{ margin: 0, fontSize: 11, color: '#555', letterSpacing: 1 }}>CAMPANHA 4-4-2 · JUNHO & JULHO 2026</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {user && <button style={{ ...S.btnSm, background: '#3b82f622', color: '#3b82f6' }} onClick={onGoRegister}>+ Registrar</button>}
-            <button style={{ ...S.btnSm, background: '#ffffff18' }} onClick={onLogout}>Sair</button>
+            {user ? (
+              <>
+                <button style={{ ...S.btnSm, background: '#3b82f622', color: '#3b82f6' }} onClick={onGoRegister}>+ Registrar</button>
+                <button style={{ ...S.btnSm, background: '#ef444422', color: '#ef4444' }} onClick={onLogout}>Sair</button>
+              </>
+            ) : (
+              <button style={{ ...S.btnSm, background: '#d4af3722', color: '#d4af37', border: '1px solid #d4af3744' }} onClick={onLogin}>
+                🔑 Entrar
+              </button>
+            )}
           </div>
         </div>
 
@@ -558,6 +582,16 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
             })}
           </div>
         </details>
+
+        {!user && (
+          <div style={{ textAlign: 'center', marginTop: 24, padding: '16px', background: '#d4af3710', border: '1px solid #d4af3730', borderRadius: 12 }}>
+            <span style={{ color: '#888', fontSize: 13 }}>Quer registrar suas reuniões? </span>
+            <button onClick={onLogin} style={{ background: 'none', border: 'none', color: '#d4af37', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+              Entre aqui →
+            </button>
+          </div>
+        )}
+
         <div style={{ textAlign: 'center', marginTop: 20, color: '#333', fontSize: 11 }}>
           🏅 Bronze R$150 · 🥈 Prata R$300 · 🥇 Ouro R$500
         </div>
@@ -567,13 +601,13 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('login')
+  const [screen, setScreen] = useState('ranking')
   const [user,   setUser]   = useState(null)
   const [saving, setSaving] = useState(false)
   const { records, loading, error, countdown, lastUpdate, fetchData, addOptimistic } = useNotionRealtime()
 
   const handleLogin  = (assessor) => { setUser(assessor); setScreen('register') }
-  const handleLogout = ()         => { setUser(null); setScreen('login') }
+  const handleLogout = ()         => { setUser(null); setScreen('ranking') }
 
   const handleAdd = async (u, type) => {
     setSaving(true)
@@ -589,9 +623,9 @@ export default function App() {
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
         @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
       `}</style>
-      {screen === 'login'    && <LoginScreen onLogin={handleLogin} />}
+      {screen === 'login'    && <LoginScreen onLogin={handleLogin} onBack={() => setScreen('ranking')} />}
       {screen === 'register' && <RegisterScreen user={user} records={records} onAdd={handleAdd} saving={saving} onGoRanking={() => setScreen('ranking')} onLogout={handleLogout} />}
-      {screen === 'ranking'  && <RankingScreen user={user} records={records} loading={loading} error={error} countdown={countdown} lastUpdate={lastUpdate} onSync={() => fetchData(false)} onGoRegister={() => setScreen('register')} onLogout={handleLogout} />}
+      {screen === 'ranking'  && <RankingScreen user={user} records={records} loading={loading} error={error} countdown={countdown} lastUpdate={lastUpdate} onSync={() => fetchData(false)} onGoRegister={() => setScreen('register')} onLogin={() => setScreen('login')} onLogout={handleLogout} />}
     </>
   )
 }
