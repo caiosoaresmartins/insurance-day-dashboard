@@ -36,10 +36,9 @@ const ASSESSORS = [
 const POINTS  = { R1: 30, R2: 50, Venda: 100 }
 const META    = { R1: 4,  R2: 4,  Venda: 2 }
 const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
-const REFRESH = 60
+const REFRESH = 5
 
 // Normaliza registros Notion para o formato interno
-// O campo "name" vindo do Notion é o nome do assessor — busca o código na lista
 function normalizeNotionRecords(raw) {
   return raw.map(r => {
     const found = ASSESSORS.find(
@@ -215,29 +214,23 @@ function useNotionRealtime() {
     }
   }, [])
 
-  // Carrega na montagem
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Polling 60s (quiet = não exibe spinner)
   useEffect(() => {
     const interval = setInterval(() => fetchData(true), REFRESH * 1000)
     return () => clearInterval(interval)
   }, [fetchData])
 
-  // Countdown tick
   useEffect(() => {
     const tick = setInterval(() => setCountdown(p => p <= 1 ? REFRESH : p - 1), 1000)
     return () => clearInterval(tick)
   }, [])
 
   const addOptimistic = useCallback(async (user, type) => {
-    // 1. Adiciona otimisticamente na UI imediatamente
     const temp = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
     setRecords(prev => [...prev, temp])
     setCountdown(REFRESH)
-    // 2. Persiste no Notion
     await createRecordInNotion({ user, type })
-    // 3. Refetch silencioso para garantir consistência
     setTimeout(() => fetchData(true), 2000)
   }, [fetchData])
 
@@ -436,7 +429,6 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
       <canvas ref={confRef} style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', width: '100%', height: '100%' }} width={cw} height={ch} />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 700, margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#d4af37', letterSpacing: 2 }}>🛡️ INSURANCE DAY</h1>
@@ -448,25 +440,21 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
           </div>
         </div>
 
-        {/* Barra ao vivo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '8px 14px', background: '#ffffff06', borderRadius: 10, border: '1px solid #ffffff0a' }}>
           <LiveBadge countdown={countdown} onRefresh={onSync} loading={loading} />
           <span style={{ color: '#333', fontSize: 11 }}>atualizado às {updStr}</span>
         </div>
 
-        {/* Erro */}
         {error && (
           <div style={{ background: '#ef444418', border: '1px solid #ef444444', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>
             ⚠️ Erro ao buscar Notion: {error} — <button onClick={onSync} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>tentar novamente</button>
           </div>
         )}
 
-        {/* Loading skeleton */}
         {loading && records.length === 0 && (
           <div style={{ textAlign: 'center', padding: 60, color: '#555' }}>⏳ Carregando dados do Notion...</div>
         )}
 
-        {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 24 }}>
           {[
             { label: 'TOTAL PONTOS',  val: totalPts, color: '#d4af37' },
@@ -481,7 +469,6 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
           ))}
         </div>
 
-        {/* Minha posição */}
         {user && myData && (
           <div style={{ ...S.card, background: '#d4af3718', border: '1px solid #d4af3744', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#d4af37', minWidth: 40 }}>{myRank}º</div>
@@ -497,7 +484,6 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
           </div>
         )}
 
-        {/* Pódio */}
         <div style={{ fontSize: 12, color: '#888', letterSpacing: 2, textAlign: 'center', marginBottom: 20 }}>🏆 TOP 5 ASSESSORES</div>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, marginBottom: 24 }}>
           {podiumOrder.map((idx, vi) => {
@@ -527,7 +513,6 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
           })}
         </div>
 
-        {/* 4º e 5º */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
           {[3, 4].map(idx => {
             const a = top5[idx]; if (!a) return null
@@ -549,7 +534,6 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
           })}
         </div>
 
-        {/* Todos */}
         <details style={S.card}>
           <summary style={{ color: '#888', fontSize: 13, cursor: 'pointer', padding: '4px 0' }}>📋 Ver todos os {ranking.length} assessores</summary>
           <div style={{ marginTop: 14 }}>
@@ -582,7 +566,6 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
   )
 }
 
-// ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState('login')
   const [user,   setUser]   = useState(null)
