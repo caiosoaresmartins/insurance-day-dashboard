@@ -1,623 +1,555 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { fetchRecordsFromKV, createRecordInKV } from './kvApi.js'
+import React, { useState, useEffect, useCallback } from 'react';
 
+// ─── DADOS ───────────────────────────────────────────────────────────────────
 const ASSESSORS = [
-  { code: 'A73614', name: 'Bruno Bruel',           squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A26347', name: 'Guilherme Monticelli',  squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A38636', name: 'Hellen Carvalho',       squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A38548', name: 'Igor Bairros',          squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A96379', name: 'Leonardo Vacca',        squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A51532', name: 'Nicolas Mallmann',      squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A26305', name: 'Pedro Couto',           squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A27267', name: 'Rodrigo Lisboa',        squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A27321', name: 'Vitória Vidor',         squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A42881', name: 'Ygor Walter',           squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
-  { code: 'A98897', name: 'Daniel Mendonça',       squad: 'Los Hermanos',       squadColor: '#a16207', emoji: '🟤' },
-  { code: 'A73851', name: 'Eduardo Freitas',       squad: 'Los Hermanos',       squadColor: '#a16207', emoji: '🟤' },
-  { code: 'A98943', name: 'Israel Gusso',          squad: 'Los Hermanos',       squadColor: '#a16207', emoji: '🟤' },
-  { code: 'A97096', name: 'Júlia Mendonça',        squad: 'Los Hermanos',       squadColor: '#a16207', emoji: '🟤' },
-  { code: 'A39869', name: 'Fernando Parisotto',    squad: 'Advisors',           squadColor: '#7c3aed', emoji: '🟣' },
-  { code: 'A20680', name: 'Francisco Dall Agnol',  squad: 'Advisors',           squadColor: '#7c3aed', emoji: '🟣' },
-  { code: 'A50655', name: 'Paulo Bortolini',       squad: 'Advisors',           squadColor: '#7c3aed', emoji: '🟣' },
-  { code: 'A1998',  name: 'Icaro Piacini',         squad: 'Outliers',           squadColor: '#c2410c', emoji: '🟠' },
-  { code: 'A42105', name: 'Joceane Lenhart',       squad: 'Outliers',           squadColor: '#c2410c', emoji: '🟠' },
-  { code: 'A59147', name: 'Lucas Bach',            squad: 'Outliers',           squadColor: '#c2410c', emoji: '🟠' },
-  { code: 'A47707', name: 'Mateus Brandão',        squad: 'Outliers',           squadColor: '#c2410c', emoji: '🟠' },
-  { code: 'A56902', name: 'Daniel Mastalir',       squad: 'Anywhere',           squadColor: '#065f46', emoji: '🟢' },
-  { code: 'A56903', name: 'Leonardo Dutra',        squad: 'Anywhere',           squadColor: '#065f46', emoji: '🟢' },
-  { code: 'A54287', name: 'Bruno Giacomuzzi',      squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
-  { code: 'A22616', name: 'Enzo Hejazi',           squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
-  { code: 'A61852', name: 'Gabriel Berté',         squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
-  { code: 'A22038', name: 'José Colling',          squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
-  { code: 'A20557', name: 'Milena Portela',        squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
-  { code: 'A33788', name: 'Nicolas Gotz',          squad: 'Áreas Operacionais', squadColor: '#6b7280', emoji: '⚙️' },
-]
+  { code:'A73614', name:'Bruno Bruel',           squad:'Alavancados',        color:'#2563eb' },
+  { code:'A26347', name:'Guilherme Monticelli',  squad:'Alavancados',        color:'#2563eb' },
+  { code:'A38636', name:'Hellen Carvalho',       squad:'Alavancados',        color:'#2563eb' },
+  { code:'A38548', name:'Igor Bairros',          squad:'Alavancados',        color:'#2563eb' },
+  { code:'A96379', name:'Leonardo Vacca',        squad:'Alavancados',        color:'#2563eb' },
+  { code:'A51532', name:'Nicolas Mallmann',      squad:'Alavancados',        color:'#2563eb' },
+  { code:'A26305', name:'Pedro Couto',           squad:'Alavancados',        color:'#2563eb' },
+  { code:'A27267', name:'Rodrigo Lisboa',        squad:'Alavancados',        color:'#2563eb' },
+  { code:'A27321', name:'Vitoria Vidor',         squad:'Alavancados',        color:'#2563eb' },
+  { code:'A42881', name:'Ygor Walter',           squad:'Alavancados',        color:'#2563eb' },
+  { code:'A98897', name:'Daniel Mendonca',       squad:'Los Hermanos',       color:'#92400e' },
+  { code:'A73851', name:'Eduardo Freitas',       squad:'Los Hermanos',       color:'#92400e' },
+  { code:'A98943', name:'Israel Gusso',          squad:'Los Hermanos',       color:'#92400e' },
+  { code:'A97096', name:'Julia Mendonca',        squad:'Los Hermanos',       color:'#92400e' },
+  { code:'A39869', name:'Fernando Parisotto',    squad:'Advisors',           color:'#6d28d9' },
+  { code:'A20680', name:'Francisco Dall Agnol',  squad:'Advisors',           color:'#6d28d9' },
+  { code:'A50655', name:'Paulo Bortolini',       squad:'Advisors',           color:'#6d28d9' },
+  { code:'A1998',  name:'Icaro Piacini',         squad:'Outliers',           color:'#b45309' },
+  { code:'A42105', name:'Joceane Lenhart',       squad:'Outliers',           color:'#b45309' },
+  { code:'A59147', name:'Lucas Bach',            squad:'Outliers',           color:'#b45309' },
+  { code:'A47707', name:'Mateus Brandao',        squad:'Outliers',           color:'#b45309' },
+  { code:'A56902', name:'Daniel Mastalir',       squad:'Anywhere',           color:'#065f46' },
+  { code:'A56903', name:'Leonardo Dutra',        squad:'Anywhere',           color:'#065f46' },
+  { code:'A54287', name:'Bruno Giacomuzzi',      squad:'Op. Operacionais',   color:'#374151' },
+  { code:'A22616', name:'Enzo Hejazi',           squad:'Op. Operacionais',   color:'#374151' },
+  { code:'A61852', name:'Gabriel Berte',         squad:'Op. Operacionais',   color:'#374151' },
+  { code:'A22038', name:'Jose Colling',          squad:'Op. Operacionais',   color:'#374151' },
+  { code:'A20557', name:'Milena Portela',        squad:'Op. Operacionais',   color:'#374151' },
+  { code:'A33788', name:'Nicolas Gotz',          squad:'Op. Operacionais',   color:'#374151' },
+];
 
-const POINTS  = { R1: 30, R2: 50, Venda: 100 }
-const META    = { R1: 4,  R2: 4,  Venda: 2 }
-const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
-const REFRESH = 15
+const PTS   = { R1:30, R2:50, Venda:100 };
+const META  = { R1:4,  R2:4,  Venda:2  };
+const TICK  = 15; // segundos entre refreshes
 
-function computeRanking(records) {
-  const map = {}
-  ASSESSORS.forEach(a => { map[a.code] = { ...a, R1: 0, R2: 0, Venda: 0, pts: 0 } })
+// ─── KV API ──────────────────────────────────────────────────────────────────
+async function kvFetch() {
+  const r = await fetch('/api/kv');
+  if (!r.ok) throw new Error('Falha ao buscar dados');
+  const d = await r.json();
+  return Array.isArray(d.records) ? d.records : [];
+}
+
+async function kvAdd(user, type) {
+  const r = await fetch('/api/kv', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'add',
+      record: { code: user.code, name: user.name, squad: user.squad, type },
+    }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao gravar'); }
+  return r.json();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function buildRanking(records) {
+  const m = {};
+  ASSESSORS.forEach(a => { m[a.code] = { ...a, R1:0, R2:0, Venda:0, pts:0 }; });
   records.forEach(r => {
-    if (map[r.code]) { map[r.code][r.type]++; map[r.code].pts += POINTS[r.type] }
-  })
-  return Object.values(map).sort((a, b) => b.pts - a.pts || b.Venda - a.Venda || b.R2 - a.R2)
+    if (m[r.code]) { m[r.code][r.type] += 1; m[r.code].pts += (PTS[r.type] || 0); }
+  });
+  return Object.values(m).sort((a,b) => b.pts - a.pts || b.Venda - a.Venda || b.R2 - a.R2);
 }
 
-function getPremio(a) {
-  if (a.R1 >= 4 && a.R2 >= 4 && a.Venda >= 2) return { label: '🥇 Ouro',   color: '#d4af37', val: PREMIO.ouro }
-  if (a.R1 >= 4 && a.R2 >= 4)                  return { label: '🥈 Prata',  color: '#c0c0c0', val: PREMIO.prata }
-  if (a.R1 >= 4)                                return { label: '🥉 Bronze', color: '#cd7f32', val: PREMIO.bronze }
-  return null
+function premio(a) {
+  if (a.R1>=4 && a.R2>=4 && a.Venda>=2) return { label:'Ouro',   val:500, hex:'#d4af37' };
+  if (a.R1>=4 && a.R2>=4)               return { label:'Prata',  val:300, hex:'#9ca3af' };
+  if (a.R1>=4)                           return { label:'Bronze', val:150, hex:'#b45309' };
+  return null;
 }
 
-function burst(canvas, big) {
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  const count = big ? 200 : 80
-  const pieces = Array.from({ length: count }, () => ({
-    x: Math.random() * canvas.width,
-    y: big ? Math.random() * canvas.height * 0.3 : canvas.height * 0.5,
-    r: Math.random() * 7 + 3, g: Math.random() * 5 + 3,
-    color: ['#d4af37','#fff','#10b981','#3b82f6','#f59e0b','#ec4899'][Math.floor(Math.random() * 6)],
-    rot: Math.random() * 360, rs: (Math.random() - 0.5) * 8, vx: (Math.random() - 0.5) * 6,
-  }))
-  let raf
-  const draw = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    pieces.forEach(p => {
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180)
-      ctx.fillStyle = p.color; ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); ctx.restore()
-      p.y += p.g; p.x += p.vx; p.rot += p.rs
-    })
-    if (pieces.some(p => p.y < canvas.height + 50)) raf = requestAnimationFrame(draw)
-    else ctx.clearRect(0, 0, canvas.width, canvas.height)
-  }
-  draw()
-  return () => cancelAnimationFrame(raf)
+function initials(name) {
+  return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 }
 
-function MeteorBg() {
-  const ref = useRef(null)
-  useEffect(() => {
-    const c = ref.current; if (!c) return
-    const ctx = c.getContext('2d')
-    const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight }
-    resize(); window.addEventListener('resize', resize)
-    const meteors = Array.from({ length: 16 }, () => ({
-      x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
-      len: 60 + Math.random() * 120, spd: 0.8 + Math.random() * 1.5,
-      op: 0.1 + Math.random() * 0.25, w: 1 + Math.random() * 1.5,
-    }))
-    let raf
-    const draw = () => {
-      ctx.clearRect(0, 0, c.width, c.height)
-      meteors.forEach(m => {
-        const g = ctx.createLinearGradient(m.x, m.y, m.x - m.len, m.y - m.len)
-        g.addColorStop(0, `rgba(212,175,55,${m.op})`); g.addColorStop(1, 'rgba(212,175,55,0)')
-        ctx.strokeStyle = g; ctx.lineWidth = m.w
-        ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x - m.len, m.y - m.len); ctx.stroke()
-        m.x += m.spd; m.y += m.spd
-        if (m.x > c.width + 120 || m.y > c.height + 120) { m.x = Math.random() * c.width - 100; m.y = -60 }
-      })
-      raf = requestAnimationFrame(draw)
-    }
-    draw()
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
-  }, [])
-  return <canvas ref={ref} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
+function fmt(ts) {
+  return new Date(ts).toLocaleString('pt-BR',{ day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit' });
 }
 
-function LiveBadge({ countdown, onRefresh, loading }) {
-  const pct = ((REFRESH - countdown) / REFRESH) * 100
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#10b98118', border: '1px solid #10b98144', borderRadius: 20, padding: '4px 10px' }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'livePulse 1.2s ease-in-out infinite' }} />
-        <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>AO VIVO · KV</span>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 52 }}>
-        <span style={{ color: '#555', fontSize: 10 }}>atualiza em</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <div style={{ width: 36, height: 4, background: '#ffffff0f', borderRadius: 4, overflow: 'hidden' }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: '#d4af37', borderRadius: 4, transition: 'width 1s linear' }} />
-          </div>
-          <span style={{ color: '#d4af37', fontSize: 11, fontWeight: 700, minWidth: 20 }}>{countdown}s</span>
-        </div>
-      </div>
-      <button onClick={onRefresh} disabled={loading}
-        style={{ background: loading ? '#ffffff06' : '#ffffff0f', border: '1px solid #ffffff18', borderRadius: 8, color: loading ? '#444' : '#888', fontSize: 13, padding: '4px 10px', cursor: loading ? 'default' : 'pointer' }}>
-        {loading ? '⏳' : '↻'}
-      </button>
-    </div>
-  )
-}
+// ─── ESTILOS BASE ─────────────────────────────────────────────────────────────
+const BG   = '#05050a';
+const CARD = { background:'#0f0f18', border:'1px solid #1a1a2e', borderRadius:12, padding:16 };
+const GOLD = '#d4af37';
 
-function Avatar({ name, size = 56, border = '#444', glow = false }) {
-  const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-  const colors = ['#1d4ed8','#7c3aed','#c2410c','#065f46','#a16207','#0e7490']
-  const bg = colors[name.charCodeAt(0) % colors.length]
+// ─── COMPONENTES SIMPLES ──────────────────────────────────────────────────────
+function Av({ name, size=40, ring='#333' }) {
+  const bg = ['#1d4ed8','#7c3aed','#c2410c','#065f46','#92400e','#374151'];
+  const c  = bg[name.charCodeAt(0) % bg.length];
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%', background: bg,
-      border: `3px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.35, fontWeight: 700, color: '#fff', flexShrink: 0,
-      boxShadow: glow ? `0 0 18px ${border}88, 0 0 36px ${border}44` : 'none',
-    }}>{initials}</div>
-  )
+      width:size, height:size, borderRadius:'50%', background:c,
+      border:'2px solid '+ring, display:'flex', alignItems:'center',
+      justifyContent:'center', color:'#fff', fontWeight:700,
+      fontSize:size*0.35, flexShrink:0,
+    }}>{initials(name)}</div>
+  );
 }
 
-function ProgBar({ val, max, color }) {
-  const pct = Math.min(100, (val / max) * 100)
+function Bar({ val, max, color='#d4af37' }) {
+  const p = Math.min(100, max ? (val/max)*100 : 0);
   return (
-    <div style={{ background: '#ffffff18', borderRadius: 4, height: 6, overflow: 'hidden', width: '100%' }}>
-      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
+    <div style={{ background:'#1f1f2e', borderRadius:4, height:6, overflow:'hidden' }}>
+      <div style={{ width:p+'%', height:'100%', background:color, borderRadius:4, transition:'width .5s ease' }} />
     </div>
-  )
+  );
+}
+
+function Badge({ label, color }) {
+  return (
+    <span style={{
+      background:color+'22', border:'1px solid '+color,
+      color:color, borderRadius:99, padding:'2px 10px',
+      fontSize:11, fontWeight:700,
+    }}>{label}</span>
+  );
 }
 
 function Toast({ msg, ok }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
-      background: ok ? '#10b981' : '#ef4444', color: '#fff', padding: '12px 28px',
-      borderRadius: 12, fontWeight: 600, fontSize: 15, zIndex: 9999, boxShadow: '0 8px 32px #0008',
+      position:'fixed', bottom:28, left:'50%', transform:'translateX(-50%)',
+      background: ok ? '#10b981' : '#ef4444',
+      color:'#fff', padding:'12px 24px', borderRadius:10,
+      fontWeight:600, fontSize:14, zIndex:9999, boxShadow:'0 4px 24px #0008',
+      whiteSpace:'nowrap',
     }}>{msg}</div>
-  )
+  );
 }
 
-const S = {
-  page:     { minHeight: '100vh', background: '#080808', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' },
-  card:     { background: '#111', border: '1px solid #1f1f1f', borderRadius: 16, padding: 24 },
-  label:    { display: 'block', color: '#888', fontSize: 12, letterSpacing: 1, marginBottom: 8 },
-  input:    { width: '100%', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 10, padding: '14px 16px', color: '#fff', fontSize: 15, outline: 'none' },
-  dropdown: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 10, overflow: 'hidden', marginTop: 4 },
-  dropItem: { display: 'flex', alignItems: 'center', padding: '10px 14px', cursor: 'pointer', transition: 'background 0.15s' },
-  btn:      { width: '100%', padding: '14px', background: '#d4af37', border: 'none', borderRadius: 10, color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer', letterSpacing: 1 },
-  btnSm:    { padding: '8px 14px', border: 'none', borderRadius: 8, color: '#ccc', fontWeight: 600, fontSize: 12, cursor: 'pointer' },
-}
+// ─── HOOK REALTIME ────────────────────────────────────────────────────────────
+function useKV() {
+  const [records,    setRecords]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [countdown,  setCountdown]  = useState(TICK);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
-// ── Hook: dados em tempo real do Vercel KV ─────────────────────────────────────
-function useKVRealtime() {
-  const [records, setRecords]       = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState(null)
-  const [countdown, setCountdown]   = useState(REFRESH)
-  const [lastUpdate, setLastUpdate] = useState(null)
-
-  const fetchData = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true)
-    setError(null)
+  const load = useCallback(async (quiet=false) => {
+    if (!quiet) setLoading(true);
+    setError(null);
     try {
-      const data = await fetchRecordsFromKV()
-      setRecords(data)
-      setLastUpdate(new Date())
-      setCountdown(REFRESH)
-    } catch (e) {
-      setError(e.message)
+      const data = await kvFetch();
+      setRecords(data);
+      setLastUpdate(new Date());
+      setCountdown(TICK);
+    } catch(e) {
+      setError(e.message);
     } finally {
-      if (!quiet) setLoading(false)
-      else setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
-  // Carga inicial
-  useEffect(() => { fetchData() }, [fetchData])
-
-  // Polling a cada REFRESH segundos
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const id=setInterval(()=>load(true), TICK*1000); return ()=>clearInterval(id); }, [load]);
+  useEffect(() => { const id=setInterval(()=>setCountdown(p=>p<=1?TICK:p-1),1000); return ()=>clearInterval(id); }, []);
   useEffect(() => {
-    const interval = setInterval(() => fetchData(true), REFRESH * 1000)
-    return () => clearInterval(interval)
-  }, [fetchData])
+    const fn=()=>{ if(document.visibilityState==='visible') load(true); };
+    document.addEventListener('visibilitychange',fn);
+    return ()=>document.removeEventListener('visibilitychange',fn);
+  }, [load]);
 
-  // Countdown visual
-  useEffect(() => {
-    const tick = setInterval(() => setCountdown(p => p <= 1 ? REFRESH : p - 1), 1000)
-    return () => clearInterval(tick)
-  }, [])
+  const add = useCallback(async (user, type) => {
+    const tmp = { id:'tmp_'+Date.now(), code:user.code, name:user.name, squad:user.squad, type, ts:Date.now() };
+    setRecords(p=>[...p,tmp]);
+    await kvAdd(user, type);
+    setTimeout(()=>load(true), 800);
+  }, [load]);
 
-  // Refresh ao voltar para a aba
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') fetchData(true)
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [fetchData])
-
-  const addRecord = useCallback(async (user, type) => {
-    // Optimistic update
-    const temp = { id: `temp_${Date.now()}`, code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
-    setRecords(prev => [...prev, temp])
-    setCountdown(REFRESH)
-    await createRecordInKV({ user, type })
-    // Confirma do servidor após 1s
-    setTimeout(() => fetchData(true), 1000)
-  }, [fetchData])
-
-  return { records, loading, error, countdown, lastUpdate, fetchData, addRecord }
+  return { records, loading, error, countdown, lastUpdate, load, add };
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
-function LoginScreen({ onLogin, onBack }) {
-  const [q, setQ]     = useState('')
-  const [sel, setSel] = useState(null)
-  const [err, setErr] = useState('')
-  const filtered = q.length >= 1
-    ? ASSESSORS.filter(a =>
-        a.name.toLowerCase().includes(q.toLowerCase()) ||
+// ─── TAB: LOGIN ───────────────────────────────────────────────────────────────
+function TabLogin({ onLogin }) {
+  const [q,setQ]     = useState('');
+  const [sel,setSel] = useState(null);
+  const [err,setErr] = useState('');
+
+  const list = q.length>=2
+    ? ASSESSORS.filter(a=>
+        a.name.toLowerCase().includes(q.toLowerCase())||
         a.code.toLowerCase().includes(q.toLowerCase())
-      ).slice(0, 8)
-    : []
-  const pick = (a) => { setSel(a); setQ(a.name); setErr('') }
-  const go   = () => { if (!sel) { setErr('Selecione um assessor da lista'); return } onLogin(sel) }
+      ).slice(0,7)
+    : [];
+
+  const pick = a => { setSel(a); setQ(a.name); setErr(''); };
+  const go   = () => { if(!sel){setErr('Selecione um nome da lista'); return;} onLogin(sel); };
+
   return (
-    <div style={S.page}>
-      <MeteorBg />
-      <div style={{ ...S.card, maxWidth: 440, position: 'relative', zIndex: 1 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🛡️</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#d4af37', letterSpacing: 2, margin: 0 }}>INSURANCE DAY</h1>
-          <p style={{ color: '#888', fontSize: 13, marginTop: 6, letterSpacing: 1 }}>CAMPANHA 4-4-2 · JUNHO & JULHO 2026</p>
-        </div>
-        <label style={S.label}>Seu código XP ou nome</label>
-        <input style={S.input} placeholder="Ex: A98943 ou Israel Gusso"
-          value={q} onChange={e => { setQ(e.target.value); setSel(null) }}
-          onKeyDown={e => e.key === 'Enter' && go()} autoFocus />
-        {filtered.length > 0 && (
-          <div style={S.dropdown}>
-            {filtered.map(a => (
-              <div key={a.code} style={S.dropItem} onClick={() => pick(a)}
-                onMouseEnter={e => e.currentTarget.style.background = '#ffffff18'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Avatar name={a.name} size={36} border={a.squadColor} />
-                <div style={{ marginLeft: 12 }}>
-                  <div style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>{a.name}</div>
-                  <div style={{ color: '#888', fontSize: 12 }}>{a.code} · {a.emoji} {a.squad}</div>
+    <div style={{ maxWidth:420, margin:'0 auto', padding:'40px 0' }}>
+      <div style={{ textAlign:'center', marginBottom:32 }}>
+        <div style={{ fontSize:52 }}>🛡️</div>
+        <h1 style={{ margin:'8px 0 4px', color:GOLD, fontSize:26, letterSpacing:2 }}>INSURANCE DAY</h1>
+        <p style={{ color:'#555', fontSize:12, margin:0, letterSpacing:1 }}>CAMPANHA 4-4-2 · JUNHO & JULHO 2026</p>
+      </div>
+
+      <div style={CARD}>
+        <label style={{ display:'block', color:'#777', fontSize:12, marginBottom:8, letterSpacing:1 }}>CÓDIGO XP OU NOME</label>
+        <input
+          autoFocus
+          value={q}
+          onChange={e=>{ setQ(e.target.value); setSel(null); }}
+          onKeyDown={e=>e.key==='Enter'&&go()}
+          placeholder="Ex: A98943 ou Israel Gusso"
+          style={{
+            width:'100%', padding:'12px 14px', borderRadius:8,
+            border:'1px solid #1f1f2e', background:'#070710',
+            color:'#e5e7eb', fontSize:14, outline:'none', boxSizing:'border-box',
+          }}
+        />
+
+        {list.length>0 && (
+          <div style={{ marginTop:4, borderRadius:8, border:'1px solid #1a1a2e', background:'#08080f', overflow:'hidden' }}>
+            {list.map(a=>(
+              <button
+                key={a.code}
+                onClick={()=>pick(a)}
+                style={{
+                  width:'100%', textAlign:'left', padding:'10px 12px',
+                  border:'none', borderBottom:'1px solid #1a1a2e',
+                  background:'transparent', cursor:'pointer',
+                  display:'flex', alignItems:'center', gap:10,
+                }}
+              >
+                <Av name={a.name} size={34} ring={a.color} />
+                <div>
+                  <div style={{ color:'#e5e7eb', fontSize:13, fontWeight:600 }}>{a.name}</div>
+                  <div style={{ color:'#555', fontSize:11 }}>{a.code} · {a.squad}</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
-        {sel && (
-          <div style={{ ...S.card, background: '#ffffff0a', border: `1px solid ${sel.squadColor}44`, padding: 16, marginTop: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Avatar name={sel.name} size={48} border={sel.squadColor} glow={true} />
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700 }}>{sel.name}</div>
-              <div style={{ color: '#888', fontSize: 12 }}>{sel.code} · {sel.emoji} {sel.squad}</div>
-            </div>
-          </div>
-        )}
-        {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{err}</div>}
-        <button style={{ ...S.btn, marginTop: 24 }} onClick={go}>Entrar no Insurance Day →</button>
-        {onBack && (
-          <button style={{ ...S.btnSm, background: 'transparent', width: '100%', marginTop: 12, color: '#555' }} onClick={onBack}>
-            ← Voltar ao ranking
-          </button>
-        )}
+
+        {err && <div style={{ color:'#ef4444', fontSize:12, marginTop:8 }}>{err}</div>}
+
+        <button
+          onClick={go}
+          style={{
+            marginTop:16, width:'100%', padding:'13px',
+            background:GOLD, border:'none', borderRadius:8,
+            color:'#000', fontWeight:800, fontSize:15, cursor:'pointer', letterSpacing:1,
+          }}
+        >ENTRAR →</button>
       </div>
     </div>
-  )
+  );
 }
 
-function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout, saving }) {
-  const [toast, setToast] = useState(null)
-  const confRef = useRef(null)
-  const myRecs  = records.filter(r => r.code === user.code)
-  const myR1    = myRecs.filter(r => r.type === 'R1').length
-  const myR2    = myRecs.filter(r => r.type === 'R2').length
-  const myVenda = myRecs.filter(r => r.type === 'Venda').length
-  const myPts   = myR1 * 30 + myR2 * 50 + myVenda * 100
-  const premio  = getPremio({ R1: myR1, R2: myR2, Venda: myVenda })
-  const showToast = (msg, ok) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500) }
-  const register = async (type) => {
+// ─── TAB: REGISTRAR ───────────────────────────────────────────────────────────
+function TabRegistrar({ user, records, add, onLogout }) {
+  const [saving, setSaving] = useState(false);
+  const [toast,  setToast]  = useState(null);
+
+  const mine  = records.filter(r=>r.code===user.code);
+  const myR1  = mine.filter(r=>r.type==='R1').length;
+  const myR2  = mine.filter(r=>r.type==='R2').length;
+  const myV   = mine.filter(r=>r.type==='Venda').length;
+  const myPts = myR1*30 + myR2*50 + myV*100;
+  const pr    = premio({ R1:myR1, R2:myR2, Venda:myV });
+
+  const showToast = (msg, ok) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+
+  const reg = async type => {
+    setSaving(true);
     try {
-      await onAdd(user, type)
-      if (confRef.current) burst(confRef.current, type === 'Venda')
-      showToast('✅ ' + type + ' registrado!', true)
-    } catch (e) {
-      showToast('❌ Erro: ' + e.message, false)
+      await add(user, type);
+      showToast('✅ '+type+' registrado!', true);
+    } catch(e) {
+      showToast('❌ '+e.message, false);
+    } finally {
+      setSaving(false);
     }
-  }
-  const btnTypes = [
-    { type: 'R1',    label: 'R1',    sub: 'Reunião Agendada',  pts: '+30 pts',  color: '#3b82f6', icon: '📅' },
-    { type: 'R2',    label: 'R2',    sub: 'Reunião Realizada', pts: '+50 pts',  color: '#eab308', icon: '✅' },
-    { type: 'Venda', label: 'VENDA', sub: 'Fechamento',        pts: '+100 pts', color: '#10b981', icon: '💰' },
-  ]
-  const cw = window.innerWidth, ch = window.innerHeight
+  };
+
+  const BTNS = [
+    { type:'R1',    label:'R1',    sub:'Reunião Agendada',  pts:30,  color:'#3b82f6' },
+    { type:'R2',    label:'R2',    sub:'Reunião Realizada', pts:50,  color:'#eab308' },
+    { type:'Venda', label:'VENDA', sub:'Fechamento',        pts:100, color:'#10b981' },
+  ];
+
   return (
-    <div style={S.page}>
-      <MeteorBg />
-      <canvas ref={confRef} style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', width: '100%', height: '100%' }} width={cw} height={ch} />
+    <div style={{ maxWidth:500, margin:'0 auto', padding:'24px 0' }}>
       {toast && <Toast msg={toast.msg} ok={toast.ok} />}
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Avatar name={user.name} size={44} border={user.squadColor} glow={true} />
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{user.name}</div>
-              <div style={{ color: '#888', fontSize: 12 }}>{user.emoji} {user.squad}</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={{ ...S.btnSm, background: '#ffffff18' }} onClick={onGoRanking}>🏆 Ranking</button>
-            <button style={{ ...S.btnSm, background: '#ef444422', color: '#ef4444' }} onClick={onLogout}>Sair</button>
+
+      <div style={{ ...CARD, marginBottom:16, display:'flex', alignItems:'center', gap:14, justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <Av name={user.name} size={46} ring={user.color} />
+          <div>
+            <div style={{ color:'#e5e7eb', fontWeight:700, fontSize:16 }}>{user.name}</div>
+            <div style={{ color:'#555', fontSize:12 }}>{user.squad} · {user.code}</div>
           </div>
         </div>
-        <div style={{ ...S.card, marginBottom: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: 13, color: '#888', letterSpacing: 1, marginBottom: 4 }}>SEUS PONTOS</div>
-          <div style={{ fontSize: 52, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{myPts}</div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>pts acumulados</div>
-          {premio && (
-            <div style={{ marginTop: 12, padding: '6px 16px', background: premio.color + '22', border: '1px solid ' + premio.color, borderRadius: 20, display: 'inline-block', color: premio.color, fontWeight: 700, fontSize: 13 }}>
-              {premio.label} · R$ {premio.val}
-            </div>
-          )}
-        </div>
-        <div style={{ ...S.card, marginBottom: 20 }}>
-          <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 14 }}>PROGRESSO DA META 4-4-2</div>
-          {[
-            { type: 'R1',    val: myR1,    color: '#3b82f6', icon: '📅', pts: 30 },
-            { type: 'R2',    val: myR2,    color: '#eab308', icon: '✅',  pts: 50 },
-            { type: 'Venda', val: myVenda, color: '#10b981', icon: '💰',  pts: 100, max: 2 },
-          ].map(m => (
-            <div key={m.type} style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ color: '#ccc', fontSize: 13 }}>{m.icon} {m.type} <span style={{ color: '#555', fontSize: 11 }}>+{m.pts}pts</span></span>
-                <span style={{ color: m.color, fontWeight: 700, fontSize: 14 }}>{m.val} / {m.max || META[m.type]}</span>
-              </div>
-              <ProgBar val={m.val} max={m.max || META[m.type]} color={m.color} />
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 14, textAlign: 'center' }}>REGISTRAR NOVA REUNIÃO</div>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          {btnTypes.map(b => (
-            <button key={b.type} disabled={saving} onClick={() => register(b.type)}
-              style={{ flex: 1, padding: '20px 8px', borderRadius: 16, background: b.color + '22', border: '2px solid ' + b.color, color: '#fff', cursor: saving ? 'default' : 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: saving ? 0.5 : 1 }}
-              onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = b.color + '44'; e.currentTarget.style.transform = 'scale(1.04)' } }}
-              onMouseLeave={e => { e.currentTarget.style.background = b.color + '22'; e.currentTarget.style.transform = 'scale(1)' }}>
-              <span style={{ fontSize: 28 }}>{saving ? '⏳' : b.icon}</span>
-              <span style={{ fontWeight: 800, fontSize: 18, color: b.color }}>{b.label}</span>
-              <span style={{ fontSize: 11, color: '#888' }}>{b.sub}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: b.color }}>{b.pts}</span>
-            </button>
-          ))}
-        </div>
-        {myRecs.length > 0 && (
-          <div style={S.card}>
-            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 12 }}>REGISTROS DA CAMPANHA</div>
-            {[...myRecs].sort((a,b) => b.ts - a.ts).slice(0, 8).map((r, i) => {
-              const b = btnTypes.find(x => x.type === r.type)
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #ffffff0d' }}>
-                  <span style={{ color: b?.color || '#fff', fontSize: 13 }}>{b?.icon} {r.type}</span>
-                  <span style={{ color: '#555', fontSize: 11 }}>{new Date(r.ts).toLocaleDateString('pt-BR')}</span>
-                  <span style={{ color: '#d4af37', fontWeight: 700, fontSize: 12 }}>+{POINTS[r.type]} pts</span>
-                </div>
-              )
-            })}
+        <button onClick={onLogout} style={{ background:'#ef444420', border:'1px solid #ef444440', color:'#ef4444', borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:12, fontWeight:600 }}>Sair</button>
+      </div>
+
+      <div style={{ ...CARD, marginBottom:16, textAlign:'center' }}>
+        <div style={{ color:'#555', fontSize:12, letterSpacing:1, marginBottom:4 }}>SEUS PONTOS</div>
+        <div style={{ color:GOLD, fontSize:48, fontWeight:800, lineHeight:1 }}>{myPts}</div>
+        {pr && (
+          <div style={{ marginTop:10 }}>
+            <Badge label={pr.label+' · R$ '+pr.val} color={pr.hex} />
           </div>
         )}
       </div>
+
+      <div style={{ ...CARD, marginBottom:16 }}>
+        <div style={{ color:'#555', fontSize:12, letterSpacing:1, marginBottom:14 }}>PROGRESSO 4-4-2</div>
+        {[{type:'R1',val:myR1,max:4,color:'#3b82f6'},{type:'R2',val:myR2,max:4,color:'#eab308'},{type:'Venda',val:myV,max:2,color:'#10b981'}].map(m=>(
+          <div key={m.type} style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+              <span style={{ color:'#aaa', fontSize:13 }}>{m.type}</span>
+              <span style={{ color:m.color, fontWeight:700, fontSize:13 }}>{m.val} / {m.max}</span>
+            </div>
+            <Bar val={m.val} max={m.max} color={m.color} />
+          </div>
+        ))}
+      </div>
+
+      <div style={{ color:'#555', fontSize:12, letterSpacing:1, textAlign:'center', marginBottom:12 }}>REGISTRAR</div>
+      <div style={{ display:'flex', gap:12, marginBottom:16 }}>
+        {BTNS.map(b=>(
+          <button
+            key={b.type}
+            disabled={saving}
+            onClick={()=>reg(b.type)}
+            style={{
+              flex:1, padding:'18px 8px', borderRadius:12,
+              background:b.color+'18', border:'2px solid '+b.color,
+              color:'#fff', cursor:saving?'default':'pointer',
+              display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+              opacity:saving?0.5:1, transition:'opacity .2s',
+            }}
+          >
+            <span style={{ fontSize:22 }}>{saving?'⏳':b.type==='R1'?'📅':b.type==='R2'?'✅':'💰'}</span>
+            <span style={{ fontWeight:800, fontSize:16, color:b.color }}>{b.label}</span>
+            <span style={{ fontSize:11, color:'#555' }}>{b.sub}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:b.color }}>+{b.pts} pts</span>
+          </button>
+        ))}
+      </div>
+
+      {mine.length>0 && (
+        <div style={CARD}>
+          <div style={{ color:'#555', fontSize:12, letterSpacing:1, marginBottom:12 }}>SEUS REGISTROS</div>
+          {[...mine].sort((a,b)=>b.ts-a.ts).slice(0,8).map((r,i)=>{
+            const b = BTNS.find(x=>x.type===r.type);
+            return (
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #1a1a2e', alignItems:'center' }}>
+                <span style={{ color:b?b.color:'#aaa', fontSize:13 }}>{r.type}</span>
+                <span style={{ color:'#444', fontSize:11 }}>{fmt(r.ts)}</span>
+                <span style={{ color:GOLD, fontWeight:700, fontSize:12 }}>+{PTS[r.type]} pts</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
-  )
+  );
 }
 
-function RankingScreen({ user, records, loading, error, countdown, lastUpdate, onSync, onGoRegister, onLogin, onLogout }) {
-  const confRef = useRef(null)
-  const ranking = computeRanking(records)
-  const top5    = ranking.slice(0, 5)
-  const myRank  = user ? ranking.findIndex(a => a.code === user.code) + 1 : null
-  const myData  = user ? ranking.find(a => a.code === user.code) : null
-  const totalPts = ranking.reduce((s, a) => s + a.pts, 0)
-  const totalR1  = ranking.reduce((s, a) => s + a.R1,  0)
-  const totalR2  = ranking.reduce((s, a) => s + a.R2,  0)
-  const totalV   = ranking.reduce((s, a) => s + a.Venda, 0)
+// ─── TAB: RANKING ─────────────────────────────────────────────────────────────
+function TabRanking({ records }) {
+  const rank = buildRanking(records);
 
-  useEffect(() => {
-    if (confRef.current && ranking[0]?.pts > 0) burst(confRef.current, true)
-  }, []) // eslint-disable-line
-
-  const medalBorder = ['#d4af37','#c0c0c0','#cd7f32','#444','#444']
-  const medalGlow   = [true, false, false, false, false]
-  const medalLabel  = ['🥇 1º','🥈 2º','🥉 3º','4º','5º']
-  const podiumOrder = [1, 0, 2]
-  const podiumSize  = [72, 96, 72]
-  const podiumPad   = ['32px 0 0','48px 0 0','16px 0 0']
-  const cw = window.innerWidth, ch = window.innerHeight
-  const updStr = lastUpdate?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) || '--'
+  const MEDAL = ['🥇','🥈','🥉'];
 
   return (
-    <div style={S.page}>
-      <MeteorBg />
-      <canvas ref={confRef} style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', width: '100%', height: '100%' }} width={cw} height={ch} />
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 700, margin: '0 auto', padding: '24px 16px' }}>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#d4af37', letterSpacing: 2 }}>🛡️ INSURANCE DAY</h1>
-            <p style={{ margin: 0, fontSize: 11, color: '#555', letterSpacing: 1 }}>CAMPANHA 4-4-2 · JUNHO & JULHO 2026</p>
+    <div style={{ maxWidth:640, margin:'0 auto', padding:'24px 0' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:20 }}>
+        {[
+          { label:'PONTOS',  val:rank.reduce((s,a)=>s+a.pts,0),   color:GOLD },
+          { label:'R1',      val:rank.reduce((s,a)=>s+a.R1,0),    color:'#3b82f6' },
+          { label:'R2',      val:rank.reduce((s,a)=>s+a.R2,0),    color:'#eab308' },
+          { label:'VENDAS',  val:rank.reduce((s,a)=>s+a.Venda,0), color:'#10b981' },
+        ].map(m=>(
+          <div key={m.label} style={{ ...CARD, textAlign:'center', padding:'12px 8px' }}>
+            <div style={{ color:'#444', fontSize:10, letterSpacing:1 }}>{m.label}</div>
+            <div style={{ color:m.color, fontSize:28, fontWeight:800, lineHeight:1.2 }}>{m.val}</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {user ? (
-              <>
-                <button style={{ ...S.btnSm, background: '#3b82f622', color: '#3b82f6' }} onClick={onGoRegister}>+ Registrar</button>
-                <button style={{ ...S.btnSm, background: '#ef444422', color: '#ef4444' }} onClick={onLogout}>Sair</button>
-              </>
-            ) : (
-              <button style={{ ...S.btnSm, background: '#d4af3722', color: '#d4af37', border: '1px solid #d4af3744' }} onClick={onLogin}>
-                🔑 Entrar
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '8px 14px', background: '#ffffff06', borderRadius: 10, border: '1px solid #ffffff0a' }}>
-          <LiveBadge countdown={countdown} onRefresh={onSync} loading={loading} />
-          <span style={{ color: '#333', fontSize: 11 }}>atualizado às {updStr}</span>
-        </div>
-
-        {error && (
-          <div style={{ background: '#ef444418', border: '1px solid #ef444444', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>
-            ⚠️ Erro: {error} — <button onClick={onSync} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>tentar novamente</button>
-          </div>
-        )}
-
-        {loading && records.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 60, color: '#555' }}>⏳ Carregando...</div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 24 }}>
-          {[
-            { label: 'TOTAL PONTOS',  val: totalPts, color: '#d4af37' },
-            { label: 'R1 AGENDADAS',  val: totalR1,  color: '#3b82f6' },
-            { label: 'R2 REALIZADAS', val: totalR2,  color: '#eab308' },
-            { label: 'VENDAS',        val: totalV,   color: '#10b981' },
-          ].map(m => (
-            <div key={m.label} style={{ ...S.card, textAlign: 'center', padding: '16px 8px' }}>
-              <div style={{ fontSize: 10, color: '#666', letterSpacing: 1, marginBottom: 6 }}>{m.label}</div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: m.color, lineHeight: 1 }}>{m.val}</div>
-            </div>
-          ))}
-        </div>
-
-        {user && myData && (
-          <div style={{ ...S.card, background: '#d4af3718', border: '1px solid #d4af3744', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#d4af37', minWidth: 40 }}>{myRank}º</div>
-            <Avatar name={user.name} size={44} border={user.squadColor} glow={true} />
-            <div style={{ flex: 1 }}>
-              <div style={{ color: '#fff', fontWeight: 700 }}>{user.name}</div>
-              <div style={{ color: '#888', fontSize: 12 }}>{user.emoji} {user.squad}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ color: '#d4af37', fontWeight: 800, fontSize: 22 }}>{myData.pts}</div>
-              <div style={{ color: '#555', fontSize: 11 }}>pts</div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ fontSize: 12, color: '#888', letterSpacing: 2, textAlign: 'center', marginBottom: 20 }}>🏆 TOP 5 ASSESSORES</div>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, marginBottom: 24 }}>
-          {podiumOrder.map((idx, vi) => {
-            const a = top5[idx]; if (!a) return null
-            const isMe = user && a.code === user.code
-            return (
-              <div key={a.code} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: podiumPad[vi], flex: vi === 1 ? '0 0 180px' : '0 0 148px' }}>
-                <div style={{ fontSize: 13, color: medalBorder[idx], fontWeight: 700, marginBottom: 8 }}>{medalLabel[idx]}</div>
-                <div style={{ position: 'relative', animation: vi === 1 ? 'pulse 2.5s ease-in-out infinite' : 'none' }}>
-                  <Avatar name={a.name} size={podiumSize[vi]} border={medalBorder[idx]} glow={medalGlow[idx]} />
-                  {isMe && <div style={{ position: 'absolute', top: -4, right: -4, background: '#d4af37', borderRadius: '50%', width: 18, height: 18, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>★</div>}
-                </div>
-                <div style={{ color: '#fff', fontWeight: 700, fontSize: vi === 1 ? 15 : 13, marginTop: 10, textAlign: 'center' }}>{a.name.split(' ')[0]}</div>
-                <div style={{ color: '#666', fontSize: 11, marginBottom: 8 }}>{a.emoji} {a.squad}</div>
-                <div style={{ textAlign: 'center', background: '#ffffff0a', borderRadius: 10, padding: '8px 16px', width: '100%' }}>
-                  <div style={{ color: '#d4af37', fontWeight: 800, fontSize: vi === 1 ? 24 : 18 }}>{a.pts}</div>
-                  <div style={{ color: '#555', fontSize: 10 }}>pts</div>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6, fontSize: 11 }}>
-                    <span style={{ color: '#3b82f6' }}>R1·{a.R1}</span>
-                    <span style={{ color: '#eab308' }}>R2·{a.R2}</span>
-                    <span style={{ color: '#10b981' }}>V·{a.Venda}</span>
-                  </div>
-                </div>
-                {getPremio(a) && <div style={{ marginTop: 8, fontSize: 11, color: getPremio(a).color, fontWeight: 700 }}>{getPremio(a).label} · R${getPremio(a).val}</div>}
-              </div>
-            )
-          })}
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-          {[3, 4].map(idx => {
-            const a = top5[idx]; if (!a) return null
-            const isMe = user && a.code === user.code
-            return (
-              <div key={a.code} style={{ ...S.card, flex: 1, display: 'flex', alignItems: 'center', gap: 12, border: isMe ? '1px solid #d4af37' : '1px solid #ffffff12' }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#444', minWidth: 28 }}>{idx + 1}º</div>
-                <Avatar name={a.name} size={44} border={medalBorder[idx]} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>{a.name}</div>
-                  <div style={{ color: '#666', fontSize: 11 }}>{a.emoji} {a.squad}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#d4af37', fontWeight: 800, fontSize: 18 }}>{a.pts}</div>
-                  <div style={{ color: '#555', fontSize: 10 }}>pts</div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <details style={S.card}>
-          <summary style={{ color: '#888', fontSize: 13, cursor: 'pointer', padding: '4px 0' }}>📋 Ver todos os {ranking.length} assessores</summary>
-          <div style={{ marginTop: 14 }}>
-            {ranking.slice(5).map((a, i) => {
-              const isMe = user && a.code === user.code
-              return (
-                <div key={a.code} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #ffffff08', background: isMe ? '#d4af3710' : 'transparent', borderRadius: 4 }}>
-                  <span style={{ color: '#444', fontSize: 12, minWidth: 28, textAlign: 'center' }}>{i + 6}º</span>
-                  <Avatar name={a.name} size={32} border={a.squadColor} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: '#ccc', fontSize: 13, fontWeight: 600 }}>{a.name}</div>
-                    <div style={{ color: '#555', fontSize: 11 }}>{a.emoji} {a.squad}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
-                    <span style={{ color: '#3b82f6' }}>R1·{a.R1}</span>
-                    <span style={{ color: '#eab308' }}>R2·{a.R2}</span>
-                    <span style={{ color: '#10b981' }}>V·{a.Venda}</span>
-                  </div>
-                  <div style={{ color: '#d4af37', fontWeight: 700, fontSize: 14, minWidth: 50, textAlign: 'right' }}>{a.pts} pts</div>
-                </div>
-              )
-            })}
-          </div>
-        </details>
-
-        {!user && (
-          <div style={{ textAlign: 'center', marginTop: 24, padding: '16px', background: '#d4af3710', border: '1px solid #d4af3730', borderRadius: 12 }}>
-            <span style={{ color: '#888', fontSize: 13 }}>Quer registrar suas reuniões? </span>
-            <button onClick={onLogin} style={{ background: 'none', border: 'none', color: '#d4af37', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
-              Entre aqui →
-            </button>
-          </div>
-        )}
-
-        <div style={{ textAlign: 'center', marginTop: 20, color: '#333', fontSize: 11 }}>
-          🏅 Bronze R$150 · 🥈 Prata R$300 · 🥇 Ouro R$500
-        </div>
+        ))}
       </div>
+
+      {rank.map((a,i)=>{
+        const pr = premio(a);
+        return (
+          <div
+            key={a.code}
+            style={{
+              ...CARD,
+              marginBottom:8,
+              display:'flex',
+              alignItems:'center',
+              gap:12,
+              border: i<3 ? '1px solid '+(i===0?GOLD:i===1?'#9ca3af':'#b45309')+'55' : '1px solid #1a1a2e',
+            }}
+          >
+            <div style={{ minWidth:32, textAlign:'center', fontSize:i<3?20:14, color:i<3?GOLD:'#333', fontWeight:700 }}>
+              {i<3 ? MEDAL[i] : (i+1)+'º'}
+            </div>
+            <Av name={a.name} size={40} ring={a.color} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ color:'#e5e7eb', fontWeight:600, fontSize:14, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.name}</div>
+              <div style={{ color:'#555', fontSize:11 }}>{a.squad}</div>
+              <div style={{ display:'flex', gap:10, marginTop:4, fontSize:11 }}>
+                <span style={{ color:'#3b82f6' }}>R1·{a.R1}/{META.R1}</span>
+                <span style={{ color:'#eab308' }}>R2·{a.R2}/{META.R2}</span>
+                <span style={{ color:'#10b981' }}>V·{a.Venda}/{META.Venda}</span>
+              </div>
+            </div>
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <div style={{ color:GOLD, fontWeight:800, fontSize:20 }}>{a.pts}</div>
+              <div style={{ color:'#333', fontSize:10 }}>pts</div>
+              {pr && <div style={{ marginTop:4 }}><Badge label={pr.label} color={pr.hex} /></div>}
+            </div>
+          </div>
+        );
+      })}
     </div>
-  )
+  );
 }
 
+// ─── TAB: AO VIVO ─────────────────────────────────────────────────────────────
+function TabAoVivo({ records, countdown, lastUpdate, load, loading, error }) {
+  const recent = [...records].sort((a,b)=>b.ts-a.ts).slice(0,30);
+  const updStr = lastUpdate
+    ? lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    : '--';
+
+  return (
+    <div style={{ maxWidth:580, margin:'0 auto', padding:'24px 0' }}>
+      <div style={{ ...CARD, marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ width:10, height:10, borderRadius:'50%', background:'#10b981', display:'inline-block', animation:'livePulse 1.2s ease-in-out infinite' }} />
+            <span style={{ color:'#10b981', fontWeight:700, fontSize:13, letterSpacing:1 }}>AO VIVO · VERCEL KV</span>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <span style={{ color:'#555', fontSize:12 }}>Atualizado às {updStr}</span>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ width:60, height:4, background:'#1f1f2e', borderRadius:4, overflow:'hidden' }}>
+                <div style={{ width:((TICK-countdown)/TICK*100)+'%', height:'100%', background:GOLD, borderRadius:4, transition:'width 1s linear' }} />
+              </div>
+              <span style={{ color:GOLD, fontSize:12, fontWeight:700, minWidth:20 }}>{countdown}s</span>
+            </div>
+            <button
+              onClick={()=>load(false)}
+              disabled={loading}
+              style={{ background:'#1f1f2e', border:'1px solid #2a2a3e', color:loading?'#333':'#888', borderRadius:8, padding:'5px 12px', cursor:loading?'default':'pointer', fontSize:13 }}
+            >{loading?'⏳':'↻'}</button>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ ...CARD, background:'#ef444410', border:'1px solid #ef444440', color:'#ef4444', fontSize:13, marginBottom:16 }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      <div style={{ color:'#555', fontSize:12, letterSpacing:1, marginBottom:12 }}>ÚLTIMOS REGISTROS</div>
+
+      {recent.length===0 && !loading && (
+        <div style={{ ...CARD, textAlign:'center', color:'#444', padding:40 }}>Nenhum registro ainda</div>
+      )}
+
+      {recent.map((r,i)=>{
+        const a = ASSESSORS.find(x=>x.code===r.code);
+        const typeColor = r.type==='R1'?'#3b82f6':r.type==='R2'?'#eab308':'#10b981';
+        return (
+          <div key={r.id||i} style={{ ...CARD, marginBottom:8, display:'flex', alignItems:'center', gap:12 }}>
+            <Av name={r.name||'?'} size={36} ring={a?a.color:'#333'} />
+            <div style={{ flex:1 }}>
+              <div style={{ color:'#e5e7eb', fontWeight:600, fontSize:14 }}>{r.name}</div>
+              <div style={{ color:'#555', fontSize:11 }}>{r.squad} · {fmt(r.ts)}</div>
+            </div>
+            <Badge label={r.type} color={typeColor} />
+            <div style={{ color:GOLD, fontWeight:800, fontSize:15, minWidth:50, textAlign:'right' }}>+{PTS[r.type]||0} pts</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState('ranking')
-  const [user,   setUser]   = useState(null)
-  const [saving, setSaving] = useState(false)
-  const { records, loading, error, countdown, lastUpdate, fetchData, addRecord } = useKVRealtime()
+  const [tab,  setTab]  = useState('ranking');
+  const [user, setUser] = useState(null);
+  const kv = useKV();
 
-  const handleLogin  = (assessor) => { setUser(assessor); setScreen('register') }
-  const handleLogout = ()         => { setUser(null); setScreen('ranking') }
+  const TABS = [
+    { id:'ranking',   label:'🏆 Ranking'   },
+    { id:'ao-vivo',   label:'🔴 Ao Vivo'   },
+    { id:'registrar', label:'➕ Registrar' },
+  ];
 
-  const handleAdd = async (u, type) => {
-    setSaving(true)
-    try { await addRecord(u, type) }
-    finally { setSaving(false) }
-  }
+  const login  = a  => { setUser(a); setTab('registrar'); };
+  const logout = () => { setUser(null); setTab('ranking'); };
 
   return (
     <>
       <style>{`
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
-        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { background:${BG}; color:#e5e7eb; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+        button { font-family:inherit; }
+        input  { font-family:inherit; }
+        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.8)} }
       `}</style>
-      {screen === 'login'    && <LoginScreen onLogin={handleLogin} onBack={() => setScreen('ranking')} />}
-      {screen === 'register' && <RegisterScreen user={user} records={records} onAdd={handleAdd} saving={saving} onGoRanking={() => setScreen('ranking')} onLogout={handleLogout} />}
-      {screen === 'ranking'  && <RankingScreen user={user} records={records} loading={loading} error={error} countdown={countdown} lastUpdate={lastUpdate} onSync={() => fetchData(false)} onGoRegister={() => setScreen('register')} onLogin={() => setScreen('login')} onLogout={handleLogout} />}
+
+      <div style={{ padding:'0 16px', maxWidth:700, margin:'0 auto' }}>
+
+        <div style={{ padding:'16px 0 0', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid #1a1a2e' }}>
+          <span style={{ color:GOLD, fontWeight:800, fontSize:18, letterSpacing:2 }}>🛡️ INSURANCE DAY</span>
+          {user && (
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <Av name={user.name} size={28} ring={user.color} />
+              <span style={{ color:'#888', fontSize:13 }}>{user.name.split(' ')[0]}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display:'flex', gap:4, padding:'8px 0', borderBottom:'1px solid #1a1a2e', marginBottom:4 }}>
+          {TABS.map(t=>(
+            <button
+              key={t.id}
+              onClick={()=>{
+                if(t.id==='registrar' && !user) { setTab('login'); return; }
+                setTab(t.id);
+              }}
+              style={{
+                padding:'8px 16px', borderRadius:8, border:'none', cursor:'pointer',
+                fontWeight:600, fontSize:13, transition:'all .15s',
+                background: tab===t.id ? GOLD+'22' : 'transparent',
+                color:       tab===t.id ? GOLD      : '#555',
+                borderBottom: tab===t.id ? '2px solid '+GOLD : '2px solid transparent',
+              }}
+            >{t.label}</button>
+          ))}
+        </div>
+
+        {tab==='login'    && <TabLogin onLogin={login} />}
+        {tab==='ranking'  && <TabRanking records={kv.records} />}
+        {tab==='ao-vivo'  && <TabAoVivo records={kv.records} countdown={kv.countdown} lastUpdate={kv.lastUpdate} load={kv.load} loading={kv.loading} error={kv.error} />}
+        {tab==='registrar'&& user && <TabRegistrar user={user} records={kv.records} add={kv.add} onLogout={logout} />}
+        {tab==='registrar'&& !user && <TabLogin onLogin={login} />}
+      </div>
     </>
-  )
+  );
 }
