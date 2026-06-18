@@ -2,5 +2,11 @@
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "npm install --legacy-peer-deps"
+  "installCommand": "npm install --legacy-peer-deps",
+  "functions": {
+    "api/notion.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  }
 }
