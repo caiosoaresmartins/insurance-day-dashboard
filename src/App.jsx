@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { fetchRecordsFromNotion, createRecordInNotion } from './notionApi.js'
+import { fetchRecordsFromKV, createRecordInKV } from './kvApi.js'
 
 const ASSESSORS = [
   { code: 'A73614', name: 'Bruno Bruel',           squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
@@ -36,19 +36,7 @@ const ASSESSORS = [
 const POINTS  = { R1: 30, R2: 50, Venda: 100 }
 const META    = { R1: 4,  R2: 4,  Venda: 2 }
 const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
-const REFRESH = 30
-
-// Normaliza string para comparação robusta: NFC + lowercase + trim
-function normStr(s) {
-  return (s || '').normalize('NFC').toLowerCase().trim()
-}
-
-function normalizeNotionRecords(raw) {
-  return raw.map(r => {
-    const found = ASSESSORS.find(a => normStr(a.name) === normStr(r.name))
-    return found ? { ...r, code: found.code, squad: found.squad } : r
-  }).filter(r => ASSESSORS.find(a => a.code === r.code))
-}
+const REFRESH = 15
 
 function computeRanking(records) {
   const map = {}
@@ -129,7 +117,7 @@ function LiveBadge({ countdown, onRefresh, loading }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#10b98118', border: '1px solid #10b98144', borderRadius: 20, padding: '4px 10px' }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'livePulse 1.2s ease-in-out infinite' }} />
-        <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>AO VIVO · NOTION</span>
+        <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>AO VIVO · KV</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 52 }}>
         <span style={{ color: '#555', fontSize: 10 }}>atualiza em</span>
@@ -192,8 +180,8 @@ const S = {
   btnSm:    { padding: '8px 14px', border: 'none', borderRadius: 8, color: '#ccc', fontWeight: 600, fontSize: 12, cursor: 'pointer' },
 }
 
-// ── Hook: dados em tempo real do Notion ────────────────────────────────────────
-function useNotionRealtime() {
+// ── Hook: dados em tempo real do Vercel KV ─────────────────────────────────────
+function useKVRealtime() {
   const [records, setRecords]       = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
@@ -204,22 +192,22 @@ function useNotionRealtime() {
     if (!quiet) setLoading(true)
     setError(null)
     try {
-      const raw    = await fetchRecordsFromNotion()
-      const normal = normalizeNotionRecords(raw)
-      setRecords(normal)
+      const data = await fetchRecordsFromKV()
+      setRecords(data)
       setLastUpdate(new Date())
       setCountdown(REFRESH)
     } catch (e) {
       setError(e.message)
     } finally {
-      setLoading(false)
+      if (!quiet) setLoading(false)
+      else setLoading(false)
     }
   }, [])
 
   // Carga inicial
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Polling a cada 30s
+  // Polling a cada REFRESH segundos
   useEffect(() => {
     const interval = setInterval(() => fetchData(true), REFRESH * 1000)
     return () => clearInterval(interval)
@@ -231,7 +219,7 @@ function useNotionRealtime() {
     return () => clearInterval(tick)
   }, [])
 
-  // Refresh imediato ao voltar para a aba (corrige throttle de browser em background)
+  // Refresh ao voltar para a aba
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') fetchData(true)
@@ -240,17 +228,18 @@ function useNotionRealtime() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [fetchData])
 
-  const addOptimistic = useCallback(async (user, type) => {
-    const temp = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
+  const addRecord = useCallback(async (user, type) => {
+    // Optimistic update
+    const temp = { id: `temp_${Date.now()}`, code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
     setRecords(prev => [...prev, temp])
     setCountdown(REFRESH)
-    await createRecordInNotion({ user, type })
-    setTimeout(() => fetchData(true), 2000)
+    await createRecordInKV({ user, type })
+    // Confirma do servidor após 1s
+    setTimeout(() => fetchData(true), 1000)
   }, [fetchData])
 
-  return { records, loading, error, countdown, lastUpdate, fetchData, addOptimistic }
+  return { records, loading, error, countdown, lastUpdate, fetchData, addRecord }
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin, onBack }) {
@@ -328,7 +317,7 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout, saving })
     try {
       await onAdd(user, type)
       if (confRef.current) burst(confRef.current, type === 'Venda')
-      showToast('✅ ' + type + ' salvo no Notion!', true)
+      showToast('✅ ' + type + ' registrado!', true)
     } catch (e) {
       showToast('❌ Erro: ' + e.message, false)
     }
@@ -474,12 +463,12 @@ function RankingScreen({ user, records, loading, error, countdown, lastUpdate, o
 
         {error && (
           <div style={{ background: '#ef444418', border: '1px solid #ef444444', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>
-            ⚠️ Erro ao buscar Notion: {error} — <button onClick={onSync} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>tentar novamente</button>
+            ⚠️ Erro: {error} — <button onClick={onSync} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>tentar novamente</button>
           </div>
         )}
 
         {loading && records.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 60, color: '#555' }}>⏳ Carregando dados do Notion...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#555' }}>⏳ Carregando...</div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 24 }}>
@@ -607,14 +596,14 @@ export default function App() {
   const [screen, setScreen] = useState('ranking')
   const [user,   setUser]   = useState(null)
   const [saving, setSaving] = useState(false)
-  const { records, loading, error, countdown, lastUpdate, fetchData, addOptimistic } = useNotionRealtime()
+  const { records, loading, error, countdown, lastUpdate, fetchData, addRecord } = useKVRealtime()
 
   const handleLogin  = (assessor) => { setUser(assessor); setScreen('register') }
   const handleLogout = ()         => { setUser(null); setScreen('ranking') }
 
   const handleAdd = async (u, type) => {
     setSaving(true)
-    try { await addOptimistic(u, type) }
+    try { await addRecord(u, type) }
     finally { setSaving(false) }
   }
 

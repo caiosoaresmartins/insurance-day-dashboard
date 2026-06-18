@@ -7,6 +7,10 @@
     "api/notion.js": {
       "memory": 128,
       "maxDuration": 30
+    },
+    "api/kv.js": {
+      "memory": 128,
+      "maxDuration": 10
     }
   }
 }
