@@ -36,7 +36,7 @@ const ASSESSORS = [
 const POINTS  = { R1: 30, R2: 50, Venda: 100 }
 const META    = { R1: 4,  R2: 4,  Venda: 2 }
 const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
-const REFRESH = 5
+const REFRESH = 30
 
 // Normaliza string para comparação robusta: NFC + lowercase + trim
 function normStr(s) {
@@ -219,7 +219,7 @@ function useNotionRealtime() {
   // Carga inicial
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Polling com intervalo fixo — recriado a cada vez que fetchData muda
+  // Polling a cada 30s
   useEffect(() => {
     const interval = setInterval(() => fetchData(true), REFRESH * 1000)
     return () => clearInterval(interval)
