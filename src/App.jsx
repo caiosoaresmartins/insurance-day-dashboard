@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { fetchRecordsFromNotion, createRecordInNotion } from './notionApi.js'
 
 const ASSESSORS = [
   { code: 'A73614', name: 'Bruno Bruel',           squad: 'Alavancados',        squadColor: '#1d4ed8', emoji: '🔵' },
@@ -33,13 +34,20 @@ const ASSESSORS = [
 ]
 
 const POINTS  = { R1: 30, R2: 50, Venda: 100 }
-const META    = { R1: 4,  R2: 4,  Venda: 2   }
+const META    = { R1: 4,  R2: 4,  Venda: 2 }
 const PREMIO  = { bronze: 150, prata: 300, ouro: 500 }
-const LS_KEY  = 'insurance_day_v1'
-const REFRESH = 60 // segundos
+const REFRESH = 60
 
-const loadRecords = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]') } catch { return [] } }
-const saveRecords = (r) => localStorage.setItem(LS_KEY, JSON.stringify(r))
+// Normaliza registros Notion para o formato interno
+// O campo "name" vindo do Notion é o nome do assessor — busca o código na lista
+function normalizeNotionRecords(raw) {
+  return raw.map(r => {
+    const found = ASSESSORS.find(
+      a => a.name.toLowerCase().trim() === r.name.toLowerCase().trim()
+    )
+    return found ? { ...r, code: found.code, squad: found.squad } : r
+  }).filter(r => ASSESSORS.find(a => a.code === r.code))
+}
 
 function computeRanking(records) {
   const map = {}
@@ -86,12 +94,10 @@ function burst(canvas, big) {
 function MeteorBg() {
   const ref = useRef(null)
   useEffect(() => {
-    const c = ref.current
-    if (!c) return
+    const c = ref.current; if (!c) return
     const ctx = c.getContext('2d')
     const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight }
-    resize()
-    window.addEventListener('resize', resize)
+    resize(); window.addEventListener('resize', resize)
     const meteors = Array.from({ length: 16 }, () => ({
       x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
       len: 60 + Math.random() * 120, spd: 0.8 + Math.random() * 1.5,
@@ -102,8 +108,7 @@ function MeteorBg() {
       ctx.clearRect(0, 0, c.width, c.height)
       meteors.forEach(m => {
         const g = ctx.createLinearGradient(m.x, m.y, m.x - m.len, m.y - m.len)
-        g.addColorStop(0, `rgba(212,175,55,${m.op})`)
-        g.addColorStop(1, 'rgba(212,175,55,0)')
+        g.addColorStop(0, `rgba(212,175,55,${m.op})`); g.addColorStop(1, 'rgba(212,175,55,0)')
         ctx.strokeStyle = g; ctx.lineWidth = m.w
         ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x - m.len, m.y - m.len); ctx.stroke()
         m.x += m.spd; m.y += m.spd
@@ -117,17 +122,14 @@ function MeteorBg() {
   return <canvas ref={ref} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
 }
 
-// ── Contador regressivo com barra de progresso ────────────────────────────────
-function LiveBadge({ countdown, onRefresh }) {
+function LiveBadge({ countdown, onRefresh, loading }) {
   const pct = ((REFRESH - countdown) / REFRESH) * 100
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      {/* indicador ao vivo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#10b98118', border: '1px solid #10b98144', borderRadius: 20, padding: '4px 10px' }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'livePulse 1.2s ease-in-out infinite' }} />
-        <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>AO VIVO</span>
+        <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>AO VIVO · NOTION</span>
       </div>
-      {/* countdown + barra */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 52 }}>
         <span style={{ color: '#555', fontSize: 10 }}>atualiza em</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -137,10 +139,9 @@ function LiveBadge({ countdown, onRefresh }) {
           <span style={{ color: '#d4af37', fontSize: 11, fontWeight: 700, minWidth: 20 }}>{countdown}s</span>
         </div>
       </div>
-      {/* botão atualizar agora */}
-      <button onClick={onRefresh}
-        style={{ background: '#ffffff0f', border: '1px solid #ffffff18', borderRadius: 8, color: '#888', fontSize: 11, padding: '4px 8px', cursor: 'pointer' }}>
-        ↻
+      <button onClick={onRefresh} disabled={loading}
+        style={{ background: loading ? '#ffffff06' : '#ffffff0f', border: '1px solid #ffffff18', borderRadius: 8, color: loading ? '#444' : '#888', fontSize: 13, padding: '4px 10px', cursor: loading ? 'default' : 'pointer' }}>
+        {loading ? '⏳' : '↻'}
       </button>
     </div>
   )
@@ -174,8 +175,7 @@ function Toast({ msg, ok }) {
     <div style={{
       position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
       background: ok ? '#10b981' : '#ef4444', color: '#fff', padding: '12px 28px',
-      borderRadius: 12, fontWeight: 600, fontSize: 15, zIndex: 9999,
-      boxShadow: '0 8px 32px #0008',
+      borderRadius: 12, fontWeight: 600, fontSize: 15, zIndex: 9999, boxShadow: '0 8px 32px #0008',
     }}>{msg}</div>
   )
 }
@@ -191,56 +191,63 @@ const S = {
   btnSm:    { padding: '8px 14px', border: 'none', borderRadius: 8, color: '#ccc', fontWeight: 600, fontSize: 12, cursor: 'pointer' },
 }
 
-// ── Hook: sincronização em tempo real ─────────────────────────────────────────
-function useRealtimeRecords() {
-  const [records, setRecords] = useState(() => loadRecords())
-  const [countdown, setCountdown] = useState(REFRESH)
-  const [lastUpdate, setLastUpdate] = useState(new Date())
+// ── Hook: dados em tempo real do Notion ────────────────────────────────────────
+function useNotionRealtime() {
+  const [records, setRecords]       = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
+  const [countdown, setCountdown]   = useState(REFRESH)
+  const [lastUpdate, setLastUpdate] = useState(null)
 
-  const sync = useCallback(() => {
-    const fresh = loadRecords()
-    setRecords(fresh)
-    setLastUpdate(new Date())
-    setCountdown(REFRESH)
+  const fetchData = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    setError(null)
+    try {
+      const raw    = await fetchRecordsFromNotion()
+      const normal = normalizeNotionRecords(raw)
+      setRecords(normal)
+      setLastUpdate(new Date())
+      setCountdown(REFRESH)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  // polling a cada 60s
-  useEffect(() => {
-    const interval = setInterval(sync, REFRESH * 1000)
-    return () => clearInterval(interval)
-  }, [sync])
+  // Carrega na montagem
+  useEffect(() => { fetchData() }, [fetchData])
 
-  // countdown tick a cada 1s
+  // Polling 60s (quiet = não exibe spinner)
   useEffect(() => {
-    const tick = setInterval(() => {
-      setCountdown(prev => (prev <= 1 ? REFRESH : prev - 1))
-    }, 1000)
+    const interval = setInterval(() => fetchData(true), REFRESH * 1000)
+    return () => clearInterval(interval)
+  }, [fetchData])
+
+  // Countdown tick
+  useEffect(() => {
+    const tick = setInterval(() => setCountdown(p => p <= 1 ? REFRESH : p - 1), 1000)
     return () => clearInterval(tick)
   }, [])
 
-  // sync imediato ao receber evento de outra aba (mesmo dispositivo)
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === LS_KEY) sync()
-    }
-    window.addEventListener('storage', e => onStorage(e))
-    return () => window.removeEventListener('storage', onStorage)
-  }, [sync])
-
-  const addRecord = useCallback((updated) => {
-    saveRecords(updated)
-    setRecords(updated)
-    setLastUpdate(new Date())
+  const addOptimistic = useCallback(async (user, type) => {
+    // 1. Adiciona otimisticamente na UI imediatamente
+    const temp = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
+    setRecords(prev => [...prev, temp])
     setCountdown(REFRESH)
-  }, [])
+    // 2. Persiste no Notion
+    await createRecordInNotion({ user, type })
+    // 3. Refetch silencioso para garantir consistência
+    setTimeout(() => fetchData(true), 2000)
+  }, [fetchData])
 
-  return { records, addRecord, countdown, lastUpdate, sync }
+  return { records, loading, error, countdown, lastUpdate, fetchData, addOptimistic }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }) {
-  const [q, setQ] = useState('')
+  const [q, setQ]     = useState('')
   const [sel, setSel] = useState(null)
   const [err, setErr] = useState('')
   const filtered = q.length >= 1
@@ -253,11 +260,6 @@ function LoginScreen({ onLogin }) {
   const go   = () => { if (!sel) { setErr('Selecione um assessor da lista'); return } onLogin(sel) }
   return (
     <div style={S.page}>
-      <style>{`
-        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
-        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
-        @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-      `}</style>
       <MeteorBg />
       <div style={{ ...S.card, maxWidth: 440, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -266,14 +268,9 @@ function LoginScreen({ onLogin }) {
           <p style={{ color: '#888', fontSize: 13, marginTop: 6, letterSpacing: 1 }}>CAMPANHA 4-4-2 · JUNHO & JULHO 2026</p>
         </div>
         <label style={S.label}>Seu código XP ou nome</label>
-        <input
-          style={S.input}
-          placeholder="Ex: A98943 ou Israel Gusso"
-          value={q}
-          onChange={e => { setQ(e.target.value); setSel(null) }}
-          onKeyDown={e => e.key === 'Enter' && go()}
-          autoFocus
-        />
+        <input style={S.input} placeholder="Ex: A98943 ou Israel Gusso"
+          value={q} onChange={e => { setQ(e.target.value); setSel(null) }}
+          onKeyDown={e => e.key === 'Enter' && go()} autoFocus />
         {filtered.length > 0 && (
           <div style={S.dropdown}>
             {filtered.map(a => (
@@ -305,9 +302,8 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
-  const [loading, setLoading] = useState(false)
-  const [toast, setToast]     = useState(null)
+function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout, saving }) {
+  const [toast, setToast] = useState(null)
   const confRef = useRef(null)
   const myRecs  = records.filter(r => r.code === user.code)
   const myR1    = myRecs.filter(r => r.type === 'R1').length
@@ -315,23 +311,22 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
   const myVenda = myRecs.filter(r => r.type === 'Venda').length
   const myPts   = myR1 * 30 + myR2 * 50 + myVenda * 100
   const premio  = getPremio({ R1: myR1, R2: myR2, Venda: myVenda })
-  const showToast = (msg, ok) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000) }
-  const register = (type) => {
-    setLoading(true)
-    const rec     = { code: user.code, name: user.name, squad: user.squad, type, ts: Date.now() }
-    const updated = [...records, rec]
-    onAdd(updated)
-    if (confRef.current) burst(confRef.current, type === 'Venda')
-    showToast('✅ ' + type + ' registrado com sucesso!', true)
-    setLoading(false)
+  const showToast = (msg, ok) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500) }
+  const register = async (type) => {
+    try {
+      await onAdd(user, type)
+      if (confRef.current) burst(confRef.current, type === 'Venda')
+      showToast('✅ ' + type + ' salvo no Notion!', true)
+    } catch (e) {
+      showToast('❌ Erro: ' + e.message, false)
+    }
   }
   const btnTypes = [
     { type: 'R1',    label: 'R1',    sub: 'Reunião Agendada',  pts: '+30 pts',  color: '#3b82f6', icon: '📅' },
     { type: 'R2',    label: 'R2',    sub: 'Reunião Realizada', pts: '+50 pts',  color: '#eab308', icon: '✅' },
     { type: 'Venda', label: 'VENDA', sub: 'Fechamento',        pts: '+100 pts', color: '#10b981', icon: '💰' },
   ]
-  const cw = window.innerWidth
-  const ch = window.innerHeight
+  const cw = window.innerWidth, ch = window.innerHeight
   return (
     <div style={S.page}>
       <MeteorBg />
@@ -365,8 +360,8 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
           <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 14 }}>PROGRESSO DA META 4-4-2</div>
           {[
             { type: 'R1',    val: myR1,    color: '#3b82f6', icon: '📅', pts: 30 },
-            { type: 'R2',    val: myR2,    color: '#eab308', icon: '✅',   pts: 50 },
-            { type: 'Venda', val: myVenda, color: '#10b981', icon: '💰', pts: 100, max: 2 },
+            { type: 'R2',    val: myR2,    color: '#eab308', icon: '✅',  pts: 50 },
+            { type: 'Venda', val: myVenda, color: '#10b981', icon: '💰',  pts: 100, max: 2 },
           ].map(m => (
             <div key={m.type} style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -380,11 +375,11 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
         <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 14, textAlign: 'center' }}>REGISTRAR NOVA REUNIÃO</div>
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
           {btnTypes.map(b => (
-            <button key={b.type} disabled={loading} onClick={() => register(b.type)}
-              style={{ flex: 1, padding: '20px 8px', borderRadius: 16, background: b.color + '22', border: '2px solid ' + b.color, color: '#fff', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: loading ? 0.6 : 1 }}
-              onMouseEnter={e => { e.currentTarget.style.background = b.color + '44'; e.currentTarget.style.transform = 'scale(1.04)' }}
+            <button key={b.type} disabled={saving} onClick={() => register(b.type)}
+              style={{ flex: 1, padding: '20px 8px', borderRadius: 16, background: b.color + '22', border: '2px solid ' + b.color, color: '#fff', cursor: saving ? 'default' : 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: saving ? 0.5 : 1 }}
+              onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = b.color + '44'; e.currentTarget.style.transform = 'scale(1.04)' } }}
               onMouseLeave={e => { e.currentTarget.style.background = b.color + '22'; e.currentTarget.style.transform = 'scale(1)' }}>
-              <span style={{ fontSize: 28 }}>{b.icon}</span>
+              <span style={{ fontSize: 28 }}>{saving ? '⏳' : b.icon}</span>
               <span style={{ fontWeight: 800, fontSize: 18, color: b.color }}>{b.label}</span>
               <span style={{ fontSize: 11, color: '#888' }}>{b.sub}</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: b.color }}>{b.pts}</span>
@@ -393,13 +388,13 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
         </div>
         {myRecs.length > 0 && (
           <div style={S.card}>
-            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 12 }}>HISTÓRICO DA SESSÃO</div>
-            {[...myRecs].reverse().slice(0, 5).map((r, i) => {
+            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 12 }}>REGISTROS DA CAMPANHA</div>
+            {[...myRecs].sort((a,b) => b.ts - a.ts).slice(0, 8).map((r, i) => {
               const b = btnTypes.find(x => x.type === r.type)
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #ffffff0d' }}>
-                  <span style={{ color: b ? b.color : '#fff', fontSize: 13 }}>{b ? b.icon : ''} {r.type}</span>
-                  <span style={{ color: '#555', fontSize: 11 }}>{new Date(r.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style={{ color: b?.color || '#fff', fontSize: 13 }}>{b?.icon} {r.type}</span>
+                  <span style={{ color: '#555', fontSize: 11 }}>{new Date(r.ts).toLocaleDateString('pt-BR')}</span>
                   <span style={{ color: '#d4af37', fontWeight: 700, fontSize: 12 }}>+{POINTS[r.type]} pts</span>
                 </div>
               )
@@ -411,20 +406,20 @@ function RegisterScreen({ user, records, onAdd, onGoRanking, onLogout }) {
   )
 }
 
-function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegister, onLogout }) {
-  const confRef  = useRef(null)
-  const ranking  = computeRanking(records)
-  const top5     = ranking.slice(0, 5)
-  const myRank   = user ? ranking.findIndex(a => a.code === user.code) + 1 : null
-  const myData   = user ? ranking.find(a => a.code === user.code) : null
+function RankingScreen({ user, records, loading, error, countdown, lastUpdate, onSync, onGoRegister, onLogout }) {
+  const confRef = useRef(null)
+  const ranking = computeRanking(records)
+  const top5    = ranking.slice(0, 5)
+  const myRank  = user ? ranking.findIndex(a => a.code === user.code) + 1 : null
+  const myData  = user ? ranking.find(a => a.code === user.code) : null
   const totalPts = ranking.reduce((s, a) => s + a.pts, 0)
-  const totalR1  = ranking.reduce((s, a) => s + a.R1, 0)
-  const totalR2  = ranking.reduce((s, a) => s + a.R2, 0)
+  const totalR1  = ranking.reduce((s, a) => s + a.R1,  0)
+  const totalR2  = ranking.reduce((s, a) => s + a.R2,  0)
   const totalV   = ranking.reduce((s, a) => s + a.Venda, 0)
 
   useEffect(() => {
-    if (confRef.current && ranking[0] && ranking[0].pts > 0) burst(confRef.current, true)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    if (confRef.current && ranking[0]?.pts > 0) burst(confRef.current, true)
+  }, []) // eslint-disable-line
 
   const medalBorder = ['#d4af37','#c0c0c0','#cd7f32','#444','#444']
   const medalGlow   = [true, false, false, false, false]
@@ -432,12 +427,8 @@ function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegis
   const podiumOrder = [1, 0, 2]
   const podiumSize  = [72, 96, 72]
   const podiumPad   = ['32px 0 0','48px 0 0','16px 0 0']
-  const cw = window.innerWidth
-  const ch = window.innerHeight
-
-  const updatedStr = lastUpdate
-    ? lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    : '--'
+  const cw = window.innerWidth, ch = window.innerHeight
+  const updStr = lastUpdate?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) || '--'
 
   return (
     <div style={S.page}>
@@ -459,9 +450,21 @@ function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegis
 
         {/* Barra ao vivo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '8px 14px', background: '#ffffff06', borderRadius: 10, border: '1px solid #ffffff0a' }}>
-          <LiveBadge countdown={countdown} onRefresh={onSync} />
-          <span style={{ color: '#333', fontSize: 11 }}>atualizado às {updatedStr}</span>
+          <LiveBadge countdown={countdown} onRefresh={onSync} loading={loading} />
+          <span style={{ color: '#333', fontSize: 11 }}>atualizado às {updStr}</span>
         </div>
+
+        {/* Erro */}
+        {error && (
+          <div style={{ background: '#ef444418', border: '1px solid #ef444444', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>
+            ⚠️ Erro ao buscar Notion: {error} — <button onClick={onSync} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>tentar novamente</button>
+          </div>
+        )}
+
+        {/* Loading skeleton */}
+        {loading && records.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 60, color: '#555' }}>⏳ Carregando dados do Notion...</div>
+        )}
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 24 }}>
@@ -498,8 +501,7 @@ function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegis
         <div style={{ fontSize: 12, color: '#888', letterSpacing: 2, textAlign: 'center', marginBottom: 20 }}>🏆 TOP 5 ASSESSORES</div>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, marginBottom: 24 }}>
           {podiumOrder.map((idx, vi) => {
-            const a = top5[idx]
-            if (!a) return null
+            const a = top5[idx]; if (!a) return null
             const isMe = user && a.code === user.code
             return (
               <div key={a.code} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: podiumPad[vi], flex: vi === 1 ? '0 0 180px' : '0 0 148px' }}>
@@ -528,8 +530,7 @@ function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegis
         {/* 4º e 5º */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
           {[3, 4].map(idx => {
-            const a = top5[idx]
-            if (!a) return null
+            const a = top5[idx]; if (!a) return null
             const isMe = user && a.code === user.code
             return (
               <div key={a.code} style={{ ...S.card, flex: 1, display: 'flex', alignItems: 'center', gap: 12, border: isMe ? '1px solid #d4af37' : '1px solid #ffffff12' }}>
@@ -584,21 +585,30 @@ function RankingScreen({ user, records, countdown, lastUpdate, onSync, onGoRegis
 // ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState('login')
-  const [user, setUser]     = useState(null)
-  const { records, addRecord, countdown, lastUpdate, sync } = useRealtimeRecords()
+  const [user,   setUser]   = useState(null)
+  const [saving, setSaving] = useState(false)
+  const { records, loading, error, countdown, lastUpdate, fetchData, addOptimistic } = useNotionRealtime()
 
   const handleLogin  = (assessor) => { setUser(assessor); setScreen('register') }
   const handleLogout = ()         => { setUser(null); setScreen('login') }
 
+  const handleAdd = async (u, type) => {
+    setSaving(true)
+    try { await addOptimistic(u, type) }
+    finally { setSaving(false) }
+  }
+
   return (
     <>
       <style>{`
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
         @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
       `}</style>
       {screen === 'login'    && <LoginScreen onLogin={handleLogin} />}
-      {screen === 'register' && <RegisterScreen user={user} records={records} onAdd={addRecord} onGoRanking={() => setScreen('ranking')} onLogout={handleLogout} />}
-      {screen === 'ranking'  && <RankingScreen  user={user} records={records} countdown={countdown} lastUpdate={lastUpdate} onSync={sync} onGoRegister={() => setScreen('register')} onLogout={handleLogout} />}
+      {screen === 'register' && <RegisterScreen user={user} records={records} onAdd={handleAdd} saving={saving} onGoRanking={() => setScreen('ranking')} onLogout={handleLogout} />}
+      {screen === 'ranking'  && <RankingScreen user={user} records={records} loading={loading} error={error} countdown={countdown} lastUpdate={lastUpdate} onSync={() => fetchData(false)} onGoRegister={() => setScreen('register')} onLogout={handleLogout} />}
     </>
   )
 }
