@@ -1,14 +1,13 @@
 // Notion API — via proxy Vercel Serverless (/api/notion)
-// DATABASE_ID: 2a078fd8-3b27-4ad4-9447-7ba22da86e47
+// DATABASE_ID: edd6a31a-35df-4496-b48f-95213c3fc7c9 (🛡️ Insurance Day — database exclusiva)
 
-const DB_ID = '2a078fd8-3b27-4ad4-9447-7ba22da86e47'
+const DB_ID = 'edd6a31a-35df-4496-b48f-95213c3fc7c9'
 
-// Chama sempre o proxy interno da Vercel — sem CORS, sem chave exposta no frontend
-async function notionProxy(path, body) {
+async function notionProxy(path, body, mode) {
   const res = await fetch('/api/notion', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, body }),
+    body: JSON.stringify({ path, body, ...(mode ? { mode } : {}) }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -17,14 +16,12 @@ async function notionProxy(path, body) {
   return res.json()
 }
 
-// Mapeia classificacao Notion → tipo interno
 const MAP_CLASS = {
   '🔵 R1 - Agendada': 'R1',
   '🟡 R2 - Realizada': 'R2',
   '💰 Venda': 'Venda',
 }
 
-// Mapeia squad Notion → squad interno
 const MAP_SQUAD = {
   '🔵 Alavancados':        'Alavancados',
   '🟤 Los Hermanos':       'Los Hermanos',
@@ -58,19 +55,12 @@ export async function fetchRecordsFromNotion() {
     sorts: [{ property: 'Data', direction: 'descending' }]
   }
 
-  let allResults = []
-  let cursor = undefined
-
-  do {
-    const payload = cursor ? { ...queryBody, start_cursor: cursor } : queryBody
-    const data = await notionProxy(`/databases/${DB_ID}/query`, payload)
-    allResults = [...allResults, ...data.results]
-    cursor = data.has_more ? data.next_cursor : undefined
-  } while (cursor)
+  const data = await notionProxy(`/databases/${DB_ID}/query`, queryBody, 'fetchAll')
+  const allResults = data.results || []
 
   return allResults
     .map(page => {
-      const props   = page.properties
+      const props    = page.properties
       const assessor = props['Assessor']?.rich_text?.[0]?.plain_text || ''
       const classif  = props['Classificação']?.select?.name || ''
       const squad    = props['Squad']?.select?.name || ''
@@ -91,10 +81,10 @@ export async function fetchRecordsFromNotion() {
 }
 
 export async function createRecordInNotion({ user, type }) {
-  const now    = new Date()
-  const mes    = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][now.getMonth()]
-  const ano    = String(now.getFullYear())
+  const now     = new Date()
+  const mes     = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][now.getMonth()]
+  const ano     = String(now.getFullYear())
   const dateISO = now.toISOString().split('T')[0]
 
   const classifMap = {
@@ -123,8 +113,8 @@ export async function createRecordInNotion({ user, type }) {
       'Ano':           { select: { name: ano } },
       'Data':          { date: { start: dateISO } },
       'Status':        { select: { name: type === 'R1' ? '⏳ Agendada' : '✅ Realizada' } },
-      'Pipedrive Registrado':   { checkbox: false },
-      'Patrimônio do Cliente':  { select: { name: '❓ Não informado' } },
+      'Pipedrive Registrado':  { checkbox: false },
+      'Patrimônio do Cliente': { select: { name: '❓ Não informado' } },
     }
   }
 
