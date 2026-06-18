@@ -1,32 +1,38 @@
 const KV_KEY = 'insurance_records_2026';
 
-async function kvGet(key) {
-  const url = process.env.KV_REST_API_URL + '/get/' + encodeURIComponent(key);
-  const res = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + process.env.KV_REST_API_TOKEN },
-  });
-  if (!res.ok) return [];
-  const data = await res.json();
-  if (!data.result) return [];
-  try {
-    const parsed = JSON.parse(data.result);
-    // FIX #1: garante sempre array
-    return Array.isArray(parsed) ? parsed : [];
-  } catch(_) { return []; }
-}
-
-async function kvSet(key, value) {
-  const url = process.env.KV_REST_API_URL + '/set/' + encodeURIComponent(key);
-  const res = await fetch(url, {
+async function upstash(commands) {
+  // Upstash pipeline: POST /pipeline com array de comandos
+  const res = await fetch(process.env.KV_REST_API_URL + '/pipeline', {
     method: 'POST',
     headers: {
       Authorization: 'Bearer ' + process.env.KV_REST_API_TOKEN,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ value: JSON.stringify(value) }),
+    body: JSON.stringify(commands),
   });
-  if (!res.ok) throw new Error('KV set failed: ' + res.status);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error('Upstash error ' + res.status + ': ' + txt);
+  }
   return res.json();
+}
+
+async function kvGet(key) {
+  try {
+    const result = await upstash([['GET', key]]);
+    const raw = result[0]?.result;
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) { return []; }
+}
+
+async function kvSet(key, value) {
+  // SET key serialized_json
+  const serialized = JSON.stringify(value);
+  const result = await upstash([['SET', key, serialized]]);
+  if (result[0]?.error) throw new Error(result[0].error);
+  return result[0];
 }
 
 export default async function handler(req, res) {
@@ -42,8 +48,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const records = await kvGet(KV_KEY);
-      // FIX #2: sempre retorna array, nunca null
-      return res.status(200).json({ records: Array.isArray(records) ? records : [] });
+      return res.status(200).json({ records });
     }
 
     if (req.method === 'POST') {
@@ -55,7 +60,6 @@ export default async function handler(req, res) {
         if (!record || !record.code || !record.type) {
           return res.status(400).json({ error: 'code e type obrigatorios' });
         }
-        // FIX #1: kvGet ja garante array, push seguro
         const existing = await kvGet(KV_KEY);
         const newRec = {
           id:    record.code + '_' + record.type + '_' + Date.now(),
@@ -75,12 +79,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      return res.status(400).json({ error: 'action invalida. Use add ou clear' });
+      return res.status(400).json({ error: 'action invalida. Use: add ou clear' });
     }
 
     return res.status(405).json({ error: 'Metodo nao permitido' });
-  } catch(e) {
-    console.error('KV error', e);
+  } catch (e) {
+    console.error('[KV error]', e);
     return res.status(500).json({ error: e.message });
   }
 }
