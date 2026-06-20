@@ -67,7 +67,6 @@ function useCountUp(target,duration=700){
     const t0=performance.now();
     const step=ts=>{
       const p=Math.min((ts-t0)/duration,1);
-      // ease-out quart para sensação premium
       const ease=1-Math.pow(1-p,4);
       setVal(Math.round(start+diff*ease));
       if(p<1)requestAnimationFrame(step);
@@ -346,7 +345,6 @@ function MetricCard({label,val,color,icon,loading}){
         position:'relative',
         overflow:'hidden',
       }}>
-      {/* brilho de fundo ao hover */}
       <div style={{
         position:'absolute',inset:0,
         background:`radial-gradient(ellipse at 50% 0%, ${color}18 0%, transparent 70%)`,
@@ -426,12 +424,10 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
 
       <PodiumParticles key={podiumKey}/>
 
-      {/* Raio de luz */}
       <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:2,height:'100%',background:`linear-gradient(180deg,transparent,${GOLD}33,${GOLD}55,${GOLD}22,transparent)`,pointerEvents:'none',zIndex:0}}/>
       <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:'50%',height:'55%',background:`radial-gradient(ellipse at 50% 0%,${GOLD}22 0%,transparent 70%)`,pointerEvents:'none',zIndex:0}}/>
       <div style={{position:'absolute',top:0,left:'5%',right:'5%',height:2,background:`linear-gradient(90deg,transparent,${GOLD}88,transparent)`,zIndex:2}}/>
 
-      {/* 4º e 5º flancos */}
       <div style={{position:'absolute',bottom:0,left:0,width:'11%',display:'flex',flexDirection:'column',alignItems:'center',zIndex:3,paddingBottom:0}}>
         {top5[3]&&<MiniPodCol a={top5[3]} rank={3} delay={600}/>}
       </div>
@@ -439,7 +435,6 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
         {top5[4]&&<MiniPodCol a={top5[4]} rank={4} delay={800}/>}
       </div>
 
-      {/* TOP 3 */}
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'center',gap:4,position:'relative',zIndex:4,paddingLeft:'12%',paddingRight:'12%'}}>
         {order.map((idx,vi)=>{
           const a=top5[idx];if(!a)return <div key={vi} style={{flex:1}}/>;
@@ -451,7 +446,6 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
             <div key={a.code} ref={el=>cardRefs.current[a.code]=el}
               style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',maxWidth:220,animation:`riseUp ${MT.reveal} ${MT.springMd} ${delay}ms both`}}>
 
-              {/* Info acima */}
               <div style={{textAlign:'center',marginBottom:12,padding:'0 4px',zIndex:5}}>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,marginBottom:4}}>
                   <span style={{fontSize:isFirst?22:16}}>{medalLabels[vi]}</span>
@@ -462,7 +456,6 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
                 {pr&&<div style={{marginTop:5}}><PremioBadge pr={pr} big={isFirst}/></div>}
               </div>
 
-              {/* Avatar */}
               <div style={{position:'relative',marginBottom:0,zIndex:5}}>
                 {isFirst&&<div style={{position:'absolute',inset:-12,background:`radial-gradient(ellipse,${GOLD}44 0%,transparent 70%)`,animation:'glowPulse 2s ease-in-out infinite',borderRadius:'50%',zIndex:-1}}/>}
                 <Av name={a.name} size={avSz} ring={ring} glow={isFirst}/>
@@ -470,7 +463,6 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
                 <div style={{position:'absolute',bottom:-10,left:'50%',transform:'translateX(-50%)',background:`linear-gradient(135deg,${ring},${ring}88)`,color:'#000',borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,boxShadow:`0 0 12px ${ring}`,zIndex:6}}>{rankNums[vi]}</div>
               </div>
 
-              {/* Coluna */}
               <div style={{marginTop:18,width:'100%',height:colH,position:'relative',borderRadius:'10px 10px 0 0',overflow:'hidden',animation:`growUp ${MT.reveal} cubic-bezier(0.34,1.0,0.64,1) ${delay+100}ms both`}}>
                 <div style={{position:'absolute',inset:0,background:isFirst?`linear-gradient(180deg,${GOLD}22 0%,#141200 40%,#080800 100%)`:`linear-gradient(180deg,rgba(30,30,30,0.9) 0%,rgba(8,8,8,0.98) 100%)`,border:`1px solid ${isFirst?GOLD+'66':'#2a2a2a'}`,borderBottom:'none',backdropFilter:'blur(4px)'}}>
                   <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${ring}cc,transparent)`}}/>
@@ -526,7 +518,7 @@ function MiniPodCol({a,rank,delay}){
   );
 }
 
-// ====== TAB RANKING ======
+// ====== TAB RANKING — full width ======
 function TabRanking({records,loading}){
   const[showAll,setShowAll]=useState(false);
   const rank=buildRanking(records),top5=rank.slice(0,5);
@@ -548,7 +540,7 @@ function TabRanking({records,loading}){
   const isFirstLoad=loading&&records.length===0;
 
   if(isFirstLoad)return(
-    <div style={{maxWidth:780,margin:'0 auto',padding:'24px 0'}}>
+    <div style={{width:'100%',padding:'24px 0'}}>
       <SkeletonMetrics/>
       <div style={{...CARD,height:580,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16}}>
         <div style={{fontSize:40,animation:'spin 1s linear infinite',display:'inline-block'}}>✨</div>
@@ -561,7 +553,7 @@ function TabRanking({records,loading}){
   );
 
   return(
-    <div style={{maxWidth:780,margin:'0 auto',padding:'24px 0'}}>
+    <div style={{width:'100%',padding:'24px 0'}}>
       {/* MÉTRICAS */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:28}}>
         {[
@@ -868,7 +860,7 @@ export default function App(){
         @keyframes kpiPop     {0%{transform:scale(0.7);opacity:0}80%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
       `}</style>
       <RockyBg/>
-      <div style={{position:'relative',zIndex:1,padding:'0 16px',maxWidth:820,margin:'0 auto'}}>
+      <div style={{position:'relative',zIndex:1,padding:'0 24px'}}>
         <div style={{padding:'14px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:`1px solid ${GOLD}22`}}>
           <span style={{color:GOLD,fontWeight:800,fontSize:17,letterSpacing:3,textShadow:`0 0 24px ${GOLD}55`}}>🛡️ INSURANCE DAY</span>
           {user&&(
