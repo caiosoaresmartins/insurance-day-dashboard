@@ -40,13 +40,43 @@ const SILVER = '#c0c0c0';
 const BRONZE = '#cd7f32';
 const CAROUSEL_INTERVAL = 5000;
 
+// ====== MOTION TOKENS ======
+const MT = {
+  fast:    '150ms',
+  normal:  '250ms',
+  slow:    '400ms',
+  reveal:  '650ms',
+  ease:    'cubic-bezier(0.25,0.46,0.45,0.94)',
+  spring:  'cubic-bezier(0.34,1.56,0.64,1)',
+  springMd:'cubic-bezier(0.34,1.2,0.64,1)',
+  easeOut: 'cubic-bezier(0.0,0.0,0.2,1)',
+  easeIn:  'cubic-bezier(0.4,0.0,1,1)',
+};
+
 // ====== FIREWORKS ======
 const fwRef={canvas:null,ctx:null,particles:[],raf:null,active:false};
 function initFW(){if(fwRef.canvas)return;const c=document.createElement('canvas');c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8888;';c.width=window.innerWidth;c.height=window.innerHeight;document.body.appendChild(c);fwRef.canvas=c;fwRef.ctx=c.getContext('2d');window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;});}
 function launchFireworks(type){initFW();const{canvas:cv,ctx}=fwRef,W=cv.width,H=cv.height;const palettes={R1:['#3b82f6','#60a5fa','#bfdbfe','#fff'],R2:['#eab308','#facc15','#fde047','#fff'],Venda:['#d4af37','#f59e0b','#10b981','#fff','#f43f5e']};const cols=palettes[type]||palettes.Venda,bursts=type==='Venda'?7:4;for(let b=0;b<bursts;b++){setTimeout(()=>{const x=W*(0.15+Math.random()*0.7),y=H*(0.05+Math.random()*0.45),n=type==='Venda'?150:90;for(let i=0;i<n;i++){const angle=(Math.PI*2*i)/n+Math.random()*0.4,spd=2+Math.random()*8;fwRef.particles.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,alpha:1,decay:0.01+Math.random()*0.012,size:1.5+Math.random()*2.5,color:cols[Math.floor(Math.random()*cols.length)],trail:[]});}},b*200);}if(!fwRef.active){fwRef.active=true;function tick(){ctx.fillStyle='rgba(10,10,10,0.15)';ctx.fillRect(0,0,W,H);fwRef.particles=fwRef.particles.filter(p=>p.alpha>0.02);fwRef.particles.forEach(p=>{p.trail.push({x:p.x,y:p.y});if(p.trail.length>8)p.trail.shift();p.trail.forEach((t,i)=>{ctx.beginPath();ctx.arc(t.x,t.y,p.size*(i/p.trail.length)*0.7,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.alpha*(i/p.trail.length)*0.5;ctx.fill();});ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.alpha;ctx.fill();ctx.globalAlpha=1;p.x+=p.vx;p.y+=p.vy;p.vy+=0.07;p.vx*=0.99;p.alpha-=p.decay;});if(fwRef.particles.length>0)fwRef.raf=requestAnimationFrame(tick);else{ctx.clearRect(0,0,W,H);fwRef.active=false;}}tick();}}
 
-// ====== COUNT-UP ======
-function useCountUp(target,duration=700){const[val,setVal]=useState(target),prev=useRef(target);useEffect(()=>{const start=prev.current,diff=target-start;if(diff===0)return;const t0=performance.now();const step=ts=>{const p=Math.min((ts-t0)/duration,1),ease=1-Math.pow(1-p,4);setVal(Math.round(start+diff*ease));if(p<1)requestAnimationFrame(step);else prev.current=target;};requestAnimationFrame(step);},[target,duration]);return val;}
+// ====== COUNT-UP (odômetro premium) ======
+function useCountUp(target,duration=700){
+  const[val,setVal]=useState(target),prev=useRef(target);
+  useEffect(()=>{
+    const start=prev.current,diff=target-start;
+    if(diff===0)return;
+    const t0=performance.now();
+    const step=ts=>{
+      const p=Math.min((ts-t0)/duration,1);
+      // ease-out quart para sensação premium
+      const ease=1-Math.pow(1-p,4);
+      setVal(Math.round(start+diff*ease));
+      if(p<1)requestAnimationFrame(step);
+      else prev.current=target;
+    };
+    requestAnimationFrame(step);
+  },[target,duration]);
+  return val;
+}
 
 // ====== KV ======
 async function kvFetch(){const r=await fetch('/api/kv');if(!r.ok)throw new Error('Falha ao buscar dados');const d=await r.json();return Array.isArray(d.records)?d.records:[];}
@@ -56,39 +86,283 @@ function premio(a){if(a.R1>=4&&a.R2>=4&&a.Venda>=2)return{label:'OURO',val:500,h
 function initials(name){return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();}
 function fmt(ts){return new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 
-function useKV(){const[records,setRecords]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(null),[countdown,setCountdown]=useState(TICK),[lastUpdate,setLastUpdate]=useState(null);const load=useCallback(async(quiet=false)=>{if(!quiet)setLoading(true);setError(null);try{const data=await kvFetch();setRecords(Array.isArray(data)?data:[]);setLastUpdate(new Date());setCountdown(TICK);}catch(e){setError(e.message);}finally{setLoading(false);}},[]);useEffect(()=>{load();},[load]);useEffect(()=>{const id=setInterval(()=>load(true),TICK*1000);return()=>clearInterval(id);},[load]);useEffect(()=>{const id=setInterval(()=>setCountdown(p=>p<=1?TICK:p-1),1000);return()=>clearInterval(id);},[]);useEffect(()=>{const fn=()=>{if(document.visibilityState==='visible')load(true);};document.addEventListener('visibilitychange',fn);return()=>document.removeEventListener('visibilitychange',fn);},[load]);const add=useCallback(async(user,type)=>{const tmp={id:'tmp_'+Date.now(),code:user.code,name:user.name,squad:user.squad,type,ts:Date.now()};setRecords(p=>Array.isArray(p)?[...p,tmp]:[tmp]);await kvAdd(user,type);setTimeout(()=>load(true),800);},[load]);return{records,loading,error,countdown,lastUpdate,load,add};}
+function useKV(){
+  const[records,setRecords]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(null),[countdown,setCountdown]=useState(TICK),[lastUpdate,setLastUpdate]=useState(null);
+  const load=useCallback(async(quiet=false)=>{if(!quiet)setLoading(true);setError(null);try{const data=await kvFetch();setRecords(Array.isArray(data)?data:[]);setLastUpdate(new Date());setCountdown(TICK);}catch(e){setError(e.message);}finally{setLoading(false);}},[]);
+  useEffect(()=>{load();},[load]);
+  useEffect(()=>{const id=setInterval(()=>load(true),TICK*1000);return()=>clearInterval(id);},[load]);
+  useEffect(()=>{const id=setInterval(()=>setCountdown(p=>p<=1?TICK:p-1),1000);return()=>clearInterval(id);},[]);
+  useEffect(()=>{const fn=()=>{if(document.visibilityState==='visible')load(true);};document.addEventListener('visibilitychange',fn);return()=>document.removeEventListener('visibilitychange',fn);},[load]);
+  const add=useCallback(async(user,type)=>{const tmp={id:'tmp_'+Date.now(),code:user.code,name:user.name,squad:user.squad,type,ts:Date.now()};setRecords(p=>Array.isArray(p)?[...p,tmp]:[tmp]);await kvAdd(user,type);setTimeout(()=>load(true),800);},[load]);
+  return{records,loading,error,countdown,lastUpdate,load,add};
+}
 
 // ====== ROCKY BACKGROUND ======
-function RockyBg(){const ref=useRef(null);useEffect(()=>{const cv=ref.current;if(!cv)return;const ctx=cv.getContext('2d');let W=window.innerWidth,H=window.innerHeight;cv.width=W;cv.height=H;function rnd(min,max){return min+Math.random()*(max-min);}function makeRock(cx,cy,w,h,npts){const pts=[];for(let i=0;i<npts;i++){const angle=(Math.PI*2*i/npts)+rnd(-0.3,0.3);const rx=w/2*rnd(0.6,1.0),ry=h/2*rnd(0.5,1.0);pts.push({x:cx+Math.cos(angle)*rx,y:cy+Math.sin(angle)*ry});}return pts;}function drawRock(pts,baseColor,lit){if(pts.length<3)return;ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.closePath();const minY=Math.min(...pts.map(p=>p.y)),maxY=Math.max(...pts.map(p=>p.y));const g=ctx.createLinearGradient(0,minY,0,maxY);g.addColorStop(0,lit);g.addColorStop(0.4,baseColor);g.addColorStop(1,'#050505');ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(180,180,180,0.07)';ctx.lineWidth=1;ctx.stroke();}function addNoise(){const imgData=ctx.getImageData(0,0,W,H);const d=imgData.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*18;d[i]=Math.max(0,Math.min(255,d[i]+n));d[i+1]=Math.max(0,Math.min(255,d[i+1]+n));d[i+2]=Math.max(0,Math.min(255,d[i+2]+n));}ctx.putImageData(imgData,0,0);}function draw(){ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);const rockDefs=[{cx:W*0.05,cy:H*0.85,w:W*0.28,h:H*0.5,n:9,base:'#1c1c1c',lit:'#2e2e2e'},{cx:W*0.20,cy:H*0.9,w:W*0.22,h:H*0.45,n:8,base:'#181818',lit:'#282828'},{cx:W*0.60,cy:H*0.88,w:W*0.25,h:H*0.48,n:9,base:'#1a1a1a',lit:'#2c2c2c'},{cx:W*0.80,cy:H*0.85,w:W*0.3,h:H*0.5,n:10,base:'#1e1e1e',lit:'#303030'},{cx:W*0.92,cy:H*0.9,w:W*0.2,h:H*0.42,n:8,base:'#171717',lit:'#272727'},{cx:W*-0.02,cy:H*0.92,w:W*0.32,h:H*0.65,n:10,base:'#141414',lit:'#222222'},{cx:W*0.35,cy:H*0.95,w:W*0.18,h:H*0.38,n:7,base:'#161616',lit:'#242424'},{cx:W*0.50,cy:H*0.97,w:W*0.14,h:H*0.3,n:7,base:'#111111',lit:'#1e1e1e'},{cx:W*0.70,cy:H*0.93,w:W*0.20,h:H*0.42,n:8,base:'#131313',lit:'#202020'},{cx:W*1.02,cy:H*0.92,w:W*0.28,h:H*0.58,n:9,base:'#151515',lit:'#232323'},{cx:W*0.10,cy:H*1.0,w:W*0.38,h:H*0.72,n:11,base:'#0d0d0d',lit:'#1a1a1a'},{cx:W*0.88,cy:H*1.0,w:W*0.35,h:H*0.68,n:10,base:'#0e0e0e',lit:'#1b1b1b'},{cx:W*0.38,cy:H*1.05,w:W*0.20,h:H*0.35,n:8,base:'#0c0c0c',lit:'#181818'},{cx:W*0.62,cy:H*1.02,w:W*0.22,h:H*0.38,n:8,base:'#0b0b0b',lit:'#171717'}];const savedRnd=Math.random;let seed=42;Math.random=()=>{seed=(seed*1664525+1013904223)&0xffffffff;return(seed>>>0)/0xffffffff;};rockDefs.forEach(r=>{const pts=makeRock(r.cx,r.cy,r.w,r.h,r.n);drawRock(pts,r.base,r.lit);});Math.random=savedRnd;const vig=ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.9);vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,0.75)');ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);const fog=ctx.createRadialGradient(W/2,H*0.55,0,W/2,H*0.55,W*0.45);fog.addColorStop(0,'rgba(30,30,35,0.18)');fog.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=fog;ctx.fillRect(0,0,W,H);addNoise();}draw();const onResize=()=>{W=window.innerWidth;H=window.innerHeight;cv.width=W;cv.height=H;draw();};window.addEventListener('resize',onResize);return()=>window.removeEventListener('resize',onResize);},[]);return <canvas ref={ref} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:0}}/>;}
+function RockyBg(){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const cv=ref.current;if(!cv)return;
+    const ctx=cv.getContext('2d');
+    let W=window.innerWidth,H=window.innerHeight;
+    cv.width=W;cv.height=H;
+    function rnd(min,max){return min+Math.random()*(max-min);}
+    function makeRock(cx,cy,w,h,npts){const pts=[];for(let i=0;i<npts;i++){const angle=(Math.PI*2*i/npts)+rnd(-0.3,0.3);const rx=w/2*rnd(0.6,1.0),ry=h/2*rnd(0.5,1.0);pts.push({x:cx+Math.cos(angle)*rx,y:cy+Math.sin(angle)*ry});}return pts;}
+    function drawRock(pts,baseColor,lit){if(pts.length<3)return;ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.closePath();const minY=Math.min(...pts.map(p=>p.y)),maxY=Math.max(...pts.map(p=>p.y));const g=ctx.createLinearGradient(0,minY,0,maxY);g.addColorStop(0,lit);g.addColorStop(0.4,baseColor);g.addColorStop(1,'#050505');ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(180,180,180,0.07)';ctx.lineWidth=1;ctx.stroke();}
+    function addNoise(){const imgData=ctx.getImageData(0,0,W,H);const d=imgData.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*18;d[i]=Math.max(0,Math.min(255,d[i]+n));d[i+1]=Math.max(0,Math.min(255,d[i+1]+n));d[i+2]=Math.max(0,Math.min(255,d[i+2]+n));}ctx.putImageData(imgData,0,0);}
+    function draw(){ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);const rockDefs=[{cx:W*0.05,cy:H*0.85,w:W*0.28,h:H*0.5,n:9,base:'#1c1c1c',lit:'#2e2e2e'},{cx:W*0.20,cy:H*0.9,w:W*0.22,h:H*0.45,n:8,base:'#181818',lit:'#282828'},{cx:W*0.60,cy:H*0.88,w:W*0.25,h:H*0.48,n:9,base:'#1a1a1a',lit:'#2c2c2c'},{cx:W*0.80,cy:H*0.85,w:W*0.3,h:H*0.5,n:10,base:'#1e1e1e',lit:'#303030'},{cx:W*0.92,cy:H*0.9,w:W*0.2,h:H*0.42,n:8,base:'#171717',lit:'#272727'},{cx:W*-0.02,cy:H*0.92,w:W*0.32,h:H*0.65,n:10,base:'#141414',lit:'#222222'},{cx:W*0.35,cy:H*0.95,w:W*0.18,h:H*0.38,n:7,base:'#161616',lit:'#242424'},{cx:W*0.50,cy:H*0.97,w:W*0.14,h:H*0.3,n:7,base:'#111111',lit:'#1e1e1e'},{cx:W*0.70,cy:H*0.93,w:W*0.20,h:H*0.42,n:8,base:'#131313',lit:'#202020'},{cx:W*1.02,cy:H*0.92,w:W*0.28,h:H*0.58,n:9,base:'#151515',lit:'#232323'},{cx:W*0.10,cy:H*1.0,w:W*0.38,h:H*0.72,n:11,base:'#0d0d0d',lit:'#1a1a1a'},{cx:W*0.88,cy:H*1.0,w:W*0.35,h:H*0.68,n:10,base:'#0e0e0e',lit:'#1b1b1b'},{cx:W*0.38,cy:H*1.05,w:W*0.20,h:H*0.35,n:8,base:'#0c0c0c',lit:'#181818'},{cx:W*0.62,cy:H*1.02,w:W*0.22,h:H*0.38,n:8,base:'#0b0b0b',lit:'#171717'}];
+    const savedRnd=Math.random;let seed=42;Math.random=()=>{seed=(seed*1664525+1013904223)&0xffffffff;return(seed>>>0)/0xffffffff;};
+    rockDefs.forEach(r=>{const pts=makeRock(r.cx,r.cy,r.w,r.h,r.n);drawRock(pts,r.base,r.lit);});
+    Math.random=savedRnd;
+    const vig=ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.9);vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,0.75)');ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+    const fog=ctx.createRadialGradient(W/2,H*0.55,0,W/2,H*0.55,W*0.45);fog.addColorStop(0,'rgba(30,30,35,0.18)');fog.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=fog;ctx.fillRect(0,0,W,H);
+    addNoise();}
+    draw();
+    const onResize=()=>{W=window.innerWidth;H=window.innerHeight;cv.width=W;cv.height=H;draw();};
+    window.addEventListener('resize',onResize);
+    return()=>window.removeEventListener('resize',onResize);
+  },[]);
+  return <canvas ref={ref} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:0}}/>;
+}
 
-// ====== PARTICLES CANVAS (partículas douradas flutuando no pódio) ======
-function PodiumParticles(){const ref=useRef(null);useEffect(()=>{const cv=ref.current;if(!cv)return;const ctx=cv.getContext('2d');let W=cv.offsetWidth,H=cv.offsetHeight;cv.width=W;cv.height=H;const N=38;const pts=Array.from({length:N},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+0.4,vy:-(0.3+Math.random()*0.7),vx:(Math.random()-0.5)*0.3,alpha:Math.random(),col:[GOLD,'#fff','#f59e0b','#fde68a'][Math.floor(Math.random()*4)]}));let raf;function tick(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{p.y+=p.vy;p.x+=p.vx;p.alpha+=0.008;if(p.alpha>1){p.alpha=0;p.y=H+4;p.x=Math.random()*W;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col;ctx.globalAlpha=Math.sin(p.alpha*Math.PI)*0.7;ctx.fill();ctx.globalAlpha=1;});raf=requestAnimationFrame(tick);}tick();return()=>cancelAnimationFrame(raf);},[]);return <canvas ref={ref} style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:1}}/>;}
+// ====== PARTICLES CANVAS ======
+function PodiumParticles(){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const cv=ref.current;if(!cv)return;
+    const ctx=cv.getContext('2d');
+    let W=cv.offsetWidth,H=cv.offsetHeight;
+    cv.width=W;cv.height=H;
+    const N=38;
+    const pts=Array.from({length:N},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+0.4,vy:-(0.3+Math.random()*0.7),vx:(Math.random()-0.5)*0.3,alpha:Math.random(),col:[GOLD,'#fff','#f59e0b','#fde68a'][Math.floor(Math.random()*4)]}));
+    let raf;
+    function tick(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{p.y+=p.vy;p.x+=p.vx;p.alpha+=0.008;if(p.alpha>1){p.alpha=0;p.y=H+4;p.x=Math.random()*W;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col;ctx.globalAlpha=Math.sin(p.alpha*Math.PI)*0.7;ctx.fill();ctx.globalAlpha=1;});raf=requestAnimationFrame(tick);}
+    tick();
+    return()=>cancelAnimationFrame(raf);
+  },[]);
+  return <canvas ref={ref} style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:1}}/>;
+}
 
-const CARD={background:'rgba(8,8,8,0.82)',border:'1px solid #1f1f1f',borderRadius:12,padding:16,backdropFilter:'blur(8px)'};
+// ====== GLASS CARD BASE ======
+const CARD={
+  background:'rgba(8,8,8,0.82)',
+  border:'1px solid rgba(255,255,255,0.06)',
+  borderRadius:14,
+  padding:16,
+  backdropFilter:'blur(12px)',
+  WebkitBackdropFilter:'blur(12px)',
+  boxShadow:'0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+};
+
+// ====== GLASS CARD com hover lift premium ======
+function GlassCard({children,style={},glowColor=null,onClick}){
+  const[hov,setHov]=useState(false);
+  const glow=glowColor&&hov?`0 0 32px ${glowColor}33, 0 8px 40px ${glowColor}22`:'0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)';
+  return(
+    <div
+      onClick={onClick}
+      onMouseEnter={()=>setHov(true)}
+      onMouseLeave={()=>setHov(false)}
+      style={{
+        ...CARD,
+        ...style,
+        transform:hov?'translateY(-3px) scale(1.015)':'translateY(0) scale(1)',
+        boxShadow:glow,
+        borderColor:glowColor&&hov?`${glowColor}44`:'rgba(255,255,255,0.06)',
+        transition:`transform ${MT.normal} ${MT.spring}, box-shadow ${MT.normal} ${MT.ease}, border-color ${MT.fast} ${MT.ease}`,
+        cursor:onClick?'pointer':'default',
+      }}>
+      {children}
+    </div>
+  );
+}
+
+// ====== SKELETON SHIMMER ======
+function Skeleton({w='100%',h=18,radius=6,style={}}){
+  return(
+    <div style={{
+      width:w,height:h,borderRadius:radius,
+      background:'linear-gradient(90deg,#111 25%,#1c1c1c 50%,#111 75%)',
+      backgroundSize:'200% 100%',
+      animation:'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }}/>
+  );
+}
+
+function SkeletonMetrics(){
+  return(
+    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:28}}>
+      {[0,1,2,3].map(i=>(
+        <div key={i} style={{...CARD,padding:'18px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+          <Skeleton w={32} h={32} radius={8}/>
+          <Skeleton w='70%' h={10} radius={4}/>
+          <Skeleton w='50%' h={36} radius={8}/>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ====== TAB TRANSITION WRAPPER ======
+function TabView({children,tabKey}){
+  const[vis,setVis]=useState(false);
+  useEffect(()=>{const id=setTimeout(()=>setVis(true),20);return()=>clearTimeout(id);},[tabKey]);
+  useEffect(()=>{setVis(false);},[tabKey]);
+  return(
+    <div style={{
+      opacity:vis?1:0,
+      transform:vis?'translateY(0)':'translateY(12px)',
+      transition:`opacity ${MT.slow} ${MT.easeOut}, transform ${MT.slow} ${MT.easeOut}`,
+    }}>
+      {children}
+    </div>
+  );
+}
 
 function Av({name,size=56,ring=GOLD,glow=false}){
   const bgs=['#1d4ed8','#7c3aed','#c2410c','#065f46','#92400e','#0e7490','#374151'];
-  return <div style={{width:size,height:size,borderRadius:'50%',background:bgs[name.charCodeAt(0)%bgs.length],border:`${size>60?4:3}px solid ${ring}`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:size*0.32,flexShrink:0,letterSpacing:1,boxShadow:glow?`0 0 28px ${ring}cc,0 0 60px ${ring}55,0 0 100px ${ring}22`:`0 0 10px ${ring}44`,transition:'box-shadow .3s'}}>{initials(name)}</div>;
+  return(
+    <div style={{
+      width:size,height:size,borderRadius:'50%',
+      background:bgs[name.charCodeAt(0)%bgs.length],
+      border:`${size>60?4:3}px solid ${ring}`,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      color:'#fff',fontWeight:800,fontSize:size*0.32,flexShrink:0,letterSpacing:1,
+      boxShadow:glow
+        ?`0 0 28px ${ring}cc,0 0 60px ${ring}55,0 0 100px ${ring}22`
+        :`0 0 10px ${ring}44`,
+      transition:`box-shadow ${MT.normal} ${MT.ease}`,
+    }}>
+      {initials(name)}
+    </div>
+  );
 }
 
-function Toast({msg,ok,pts}){const[vis,setVis]=useState(false);useEffect(()=>{setTimeout(()=>setVis(true),10);},[]);return(<div style={{position:'fixed',bottom:32,left:'50%',transform:vis?'translateX(-50%) translateY(0) scale(1)':'translateX(-50%) translateY(30px) scale(0.8)',background:ok?'linear-gradient(135deg,#065f46,#10b981)':'#ef4444',color:'#fff',padding:'14px 32px',borderRadius:16,fontWeight:800,fontSize:16,zIndex:9999,boxShadow:'0 8px 40px #000a',whiteSpace:'nowrap',transition:'all 0.3s cubic-bezier(0.34,1.56,0.64,1)',display:'flex',alignItems:'center',gap:12}}><span style={{fontSize:24}}>{ok?(pts===100?'💰':pts===50?'✅':'📅'):'❌'}</span><div><div>{msg}</div>{pts&&ok&&<div style={{fontSize:12,opacity:.8,fontWeight:400}}>+{pts} pontos adicionados!</div>}</div>{pts&&ok&&<div style={{fontSize:28,fontWeight:900,color:GOLD,textShadow:'0 0 10px '+GOLD}}>+{pts}</div>}</div>);}
+function Toast({msg,ok,pts}){
+  const[vis,setVis]=useState(false);
+  useEffect(()=>{setTimeout(()=>setVis(true),10);},[]);
+  return(
+    <div style={{
+      position:'fixed',bottom:32,left:'50%',
+      transform:vis?'translateX(-50%) translateY(0) scale(1)':'translateX(-50%) translateY(30px) scale(0.8)',
+      background:ok?'linear-gradient(135deg,#065f46,#10b981)':'#ef4444',
+      color:'#fff',padding:'14px 32px',borderRadius:16,fontWeight:800,fontSize:16,
+      zIndex:9999,boxShadow:'0 8px 40px #000a',whiteSpace:'nowrap',
+      transition:`all ${MT.normal} ${MT.spring}`,
+      display:'flex',alignItems:'center',gap:12,
+      backdropFilter:'blur(8px)',
+    }}>
+      <span style={{fontSize:24}}>{ok?(pts===100?'💰':pts===50?'✅':'📅'):'❌'}</span>
+      <div>
+        <div>{msg}</div>
+        {pts&&ok&&<div style={{fontSize:12,opacity:.8,fontWeight:400}}>+{pts} pontos adicionados!</div>}
+      </div>
+      {pts&&ok&&<div style={{fontSize:28,fontWeight:900,color:GOLD,textShadow:'0 0 10px '+GOLD}}>+{pts}</div>}
+    </div>
+  );
+}
 
-function FloatingPts({pts,color}){const[pos,setPos]=useState(0),[op,setOp]=useState(1);useEffect(()=>{setTimeout(()=>{setPos(-80);setOp(0);},50);},[]);return <div style={{position:'fixed',bottom:120,left:'50%',transform:`translateX(-50%) translateY(${pos}px)`,color,fontSize:42,fontWeight:900,textShadow:`0 0 24px ${color}`,opacity:op,transition:'all 1.4s cubic-bezier(0.25,0.46,0.45,0.94)',pointerEvents:'none',zIndex:9998}}>+{pts}</div>;}
+function FloatingPts({pts,color}){
+  const[pos,setPos]=useState(0),[op,setOp]=useState(1);
+  useEffect(()=>{setTimeout(()=>{setPos(-80);setOp(0);},50);},[]);
+  return(
+    <div style={{
+      position:'fixed',bottom:120,left:'50%',
+      transform:`translateX(-50%) translateY(${pos}px)`,
+      color,fontSize:42,fontWeight:900,
+      textShadow:`0 0 24px ${color}`,
+      opacity:op,
+      transition:`all 1.4s ${MT.ease}`,
+      pointerEvents:'none',zIndex:9998,
+    }}>+{pts}</div>
+  );
+}
 
-function DeltaBadge({delta}){if(!delta||delta===0)return null;const up=delta>0;return <div style={{display:'inline-flex',alignItems:'center',gap:2,background:up?'#10b98122':'#ef444422',border:'1px solid '+(up?'#10b981':'#ef4444'),borderRadius:99,padding:'2px 8px',fontSize:10,fontWeight:800,color:up?'#10b981':'#ef4444',animation:'deltaFade 3s forwards'}}>{up?'▲':'▼'}{Math.abs(delta)}</div>;}
+function DeltaBadge({delta}){
+  if(!delta||delta===0)return null;
+  const up=delta>0;
+  return(
+    <div style={{
+      display:'inline-flex',alignItems:'center',gap:2,
+      background:up?'#10b98122':'#ef444422',
+      border:'1px solid '+(up?'#10b981':'#ef4444'),
+      borderRadius:99,padding:'2px 8px',fontSize:10,fontWeight:800,
+      color:up?'#10b981':'#ef4444',
+      animation:'deltaFade 3s forwards',
+    }}>{up?'▲':'▼'}{Math.abs(delta)}</div>
+  );
+}
 
-function AnimPts({pts,style}){const val=useCountUp(pts);return <div style={style}>{val}</div>;}
+function AnimPts({pts,style}){
+  const val=useCountUp(pts);
+  return <div style={style}>{val}</div>;
+}
 
 // ====== PREMIO BADGE ======
 function PremioBadge({pr,big=false}){
   if(!pr)return null;
   return(
-    <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`linear-gradient(135deg,${pr.hex}22,${pr.hex}11)`,border:`1.5px solid ${pr.hex}`,borderRadius:big?12:99,padding:big?'8px 18px':'3px 10px',animation:'glowPulse 2.5s ease-in-out infinite',boxShadow:`0 0 16px ${pr.hex}44`}}>
+    <div style={{
+      display:'inline-flex',alignItems:'center',gap:6,
+      background:`linear-gradient(135deg,${pr.hex}22,${pr.hex}11)`,
+      border:`1.5px solid ${pr.hex}`,
+      borderRadius:big?12:99,padding:big?'8px 18px':'3px 10px',
+      animation:'glowPulse 2.5s ease-in-out infinite',
+      boxShadow:`0 0 16px ${pr.hex}44`,
+      backdropFilter:'blur(4px)',
+    }}>
       <span style={{fontSize:big?22:13}}>{pr.icon}</span>
       <div>
         <div style={{color:pr.hex,fontWeight:800,fontSize:big?13:10,letterSpacing:1}}>{pr.label}</div>
         {big&&<div style={{color:pr.hex+'aa',fontSize:10,fontWeight:600}}>R$ {pr.val}</div>}
       </div>
+    </div>
+  );
+}
+
+// ====== METRIC CARD KPI premium ======
+function MetricCard({label,val,color,icon,loading}){
+  const[hov,setHov]=useState(false);
+  if(loading)return(
+    <div style={{...CARD,padding:'18px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+      <Skeleton w={32} h={32} radius={8}/>
+      <Skeleton w='70%' h={10} radius={4}/>
+      <Skeleton w='50%' h={36} radius={8}/>
+    </div>
+  );
+  return(
+    <div
+      onMouseEnter={()=>setHov(true)}
+      onMouseLeave={()=>setHov(false)}
+      style={{
+        ...CARD,
+        textAlign:'center',
+        padding:'18px 10px',
+        transform:hov?'scale(1.06) translateY(-4px)':'scale(1) translateY(0)',
+        boxShadow:hov?`0 12px 40px ${color}33, 0 0 0 1px ${color}22, inset 0 1px 0 rgba(255,255,255,0.06)`:'0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+        borderColor:hov?`${color}44`:'rgba(255,255,255,0.06)',
+        transition:`transform ${MT.normal} ${MT.spring}, box-shadow ${MT.normal} ${MT.ease}, border-color ${MT.fast} ${MT.ease}`,
+        cursor:'default',
+        position:'relative',
+        overflow:'hidden',
+      }}>
+      {/* brilho de fundo ao hover */}
+      <div style={{
+        position:'absolute',inset:0,
+        background:`radial-gradient(ellipse at 50% 0%, ${color}18 0%, transparent 70%)`,
+        opacity:hov?1:0,
+        transition:`opacity ${MT.normal} ${MT.ease}`,
+        pointerEvents:'none',
+      }}/>
+      <div style={{fontSize:22,marginBottom:6,position:'relative'}}>{icon}</div>
+      <div style={{color:'#555',fontSize:10,letterSpacing:2,marginBottom:8,position:'relative'}}>{label}</div>
+      <div style={{
+        color:color,fontSize:36,fontWeight:900,lineHeight:1,
+        textShadow:hov?`0 0 32px ${color}88, 0 0 8px ${color}`:`0 0 20px ${color}44`,
+        transition:`text-shadow ${MT.normal} ${MT.ease}`,
+        position:'relative',
+        animation:'kpiPop 0.6s cubic-bezier(0.34,1.56,0.64,1) both',
+      }}>{val}</div>
     </div>
   );
 }
@@ -100,7 +374,7 @@ function SpotlightCard({a,rank,deltas}){
   const medalEmoji=['🥇','🥈','🥉','4️⃣','5️⃣'];
   const ring=ringColors[rank]||GOLD,d=deltas[a.code],animPts=useCountUp(a.pts,900);
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px 24px 28px',gap:14,animation:'carouselIn 0.6s cubic-bezier(0.34,1.2,0.64,1)',position:'relative',overflow:'hidden'}}>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px 24px 28px',gap:14,animation:`tabFadeUp ${MT.reveal} ${MT.springMd} both`,position:'relative',overflow:'hidden'}}>
       {rank===0&&<div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:300,height:300,background:`radial-gradient(ellipse,${GOLD}18 0%,transparent 70%)`,pointerEvents:'none'}}/>}
       <div style={{display:'flex',alignItems:'center',gap:10,zIndex:1}}>
         <span style={{fontSize:34}}>{medalEmoji[rank]}</span>
@@ -117,7 +391,7 @@ function SpotlightCard({a,rank,deltas}){
         <div style={{color:'#555',fontSize:11,letterSpacing:2,marginTop:5}}>{a.squad.toUpperCase()}</div>
         {pr&&<div style={{marginTop:10}}><PremioBadge pr={pr} big/></div>}
       </div>
-      <div style={{display:'flex',gap:20,background:'rgba(255,255,255,0.03)',borderRadius:16,padding:'14px 28px',border:'1px solid rgba(212,175,55,0.1)',zIndex:1}}>
+      <div style={{display:'flex',gap:20,background:'rgba(255,255,255,0.03)',borderRadius:16,padding:'14px 28px',border:'1px solid rgba(212,175,55,0.1)',zIndex:1,backdropFilter:'blur(6px)'}}>
         {[{v:a.R1,c:'#3b82f6',l:'R1'},{v:a.R2,c:'#eab308',l:'R2'},{v:a.Venda,c:'#10b981',l:'VENDA'}].map(x=>(<div key={x.l} style={{textAlign:'center'}}><div style={{color:x.c,fontSize:38,fontWeight:800,lineHeight:1}}>{x.v}</div><div style={{color:'#444',fontSize:10,letterSpacing:2,marginTop:3}}>{x.l}</div></div>))}
       </div>
       <div style={{textAlign:'center',zIndex:1}}>
@@ -128,7 +402,9 @@ function SpotlightCard({a,rank,deltas}){
         {[{type:'R1',val:a.R1,max:META.R1,color:'#3b82f6'},{type:'R2',val:a.R2,max:META.R2,color:'#eab308'},{type:'Venda',val:a.Venda,max:META.Venda,color:'#10b981'}].map(m=>(
           <div key={m.type} style={{marginBottom:8}}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{color:'#555',fontSize:11}}>{m.type}</span><span style={{color:m.color,fontSize:11,fontWeight:700}}>{m.val}/{m.max}</span></div>
-            <div style={{background:'#1a1a1a',borderRadius:6,height:8,overflow:'hidden'}}><div style={{width:Math.min(100,(m.val/m.max)*100)+'%',height:'100%',background:`linear-gradient(90deg,${m.color},${m.color}cc)`,borderRadius:6,transition:'width .9s cubic-bezier(0.34,1.56,0.64,1)',boxShadow:`0 0 10px ${m.color}`}}/></div>
+            <div style={{background:'#1a1a1a',borderRadius:6,height:8,overflow:'hidden'}}>
+              <div style={{width:Math.min(100,(m.val/m.max)*100)+'%',height:'100%',background:`linear-gradient(90deg,${m.color},${m.color}cc)`,borderRadius:6,transition:`width ${MT.reveal} ${MT.spring}`,boxShadow:`0 0 10px ${m.color}`}}/>
+            </div>
           </div>
         ))}
       </div>
@@ -138,30 +414,24 @@ function SpotlightCard({a,rank,deltas}){
 
 // ====== PODIO VIEW — PREMIUM ======
 function PodiumView({top5,deltas,cardRefs,podiumKey}){
-  // Ordem: 2º, 1º, 3º — visual clássico de pódio
   const order=[1,0,2];
-  // Alturas das colunas (px) — muito mais altas que antes
   const colHeights=[320,460,260];
   const avSizes=[88,116,76];
   const ringCols=[SILVER,GOLD,BRONZE];
   const rankNums=[2,1,3];
   const medalLabels=['🥈','🥇','🥉'];
-  const labelColors=[SILVER,GOLD,BRONZE];
 
   return(
-    <div style={{position:'relative',background:'linear-gradient(180deg,rgba(6,6,6,0.97) 0%,rgba(3,3,3,1) 100%)',borderRadius:20,padding:'36px 8px 0',minHeight:580,overflow:'hidden',border:'1px solid rgba(212,175,55,0.15)',boxShadow:`0 0 80px rgba(0,0,0,0.8)`,animation:'carouselIn 0.5s cubic-bezier(0.34,1.2,0.64,1)'}}>
-      
-      {/* Partículas douradas */}
+    <div style={{position:'relative',background:'linear-gradient(180deg,rgba(6,6,6,0.97) 0%,rgba(3,3,3,1) 100%)',borderRadius:20,padding:'36px 8px 0',minHeight:580,overflow:'hidden',border:'1px solid rgba(212,175,55,0.15)',boxShadow:`0 0 80px rgba(0,0,0,0.8)`,animation:`tabFadeUp ${MT.slow} ${MT.springMd} both`}}>
+
       <PodiumParticles key={podiumKey}/>
 
-      {/* Raio de luz atrás do 1º lugar */}
+      {/* Raio de luz */}
       <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:2,height:'100%',background:`linear-gradient(180deg,transparent,${GOLD}33,${GOLD}55,${GOLD}22,transparent)`,pointerEvents:'none',zIndex:0}}/>
       <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:'50%',height:'55%',background:`radial-gradient(ellipse at 50% 0%,${GOLD}22 0%,transparent 70%)`,pointerEvents:'none',zIndex:0}}/>
-      
-      {/* Linha brilhante no topo */}
       <div style={{position:'absolute',top:0,left:'5%',right:'5%',height:2,background:`linear-gradient(90deg,transparent,${GOLD}88,transparent)`,zIndex:2}}/>
 
-      {/* Top 4 e 5 — flancos laterais menores */}
+      {/* 4º e 5º flancos */}
       <div style={{position:'absolute',bottom:0,left:0,width:'11%',display:'flex',flexDirection:'column',alignItems:'center',zIndex:3,paddingBottom:0}}>
         {top5[3]&&<MiniPodCol a={top5[3]} rank={3} delay={600}/>}
       </div>
@@ -169,7 +439,7 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
         {top5[4]&&<MiniPodCol a={top5[4]} rank={4} delay={800}/>}
       </div>
 
-      {/* TOP 3 — pódio principal */}
+      {/* TOP 3 */}
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'center',gap:4,position:'relative',zIndex:4,paddingLeft:'12%',paddingRight:'12%'}}>
         {order.map((idx,vi)=>{
           const a=top5[idx];if(!a)return <div key={vi} style={{flex:1}}/>;
@@ -179,9 +449,9 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
           const delay=[300,0,500][vi];
           return(
             <div key={a.code} ref={el=>cardRefs.current[a.code]=el}
-              style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',maxWidth:220,animation:`riseUp 0.8s cubic-bezier(0.34,1.2,0.64,1) ${delay}ms both`}}>
-              
-              {/* Info acima do avatar */}
+              style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',maxWidth:220,animation:`riseUp ${MT.reveal} ${MT.springMd} ${delay}ms both`}}>
+
+              {/* Info acima */}
               <div style={{textAlign:'center',marginBottom:12,padding:'0 4px',zIndex:5}}>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,marginBottom:4}}>
                   <span style={{fontSize:isFirst?22:16}}>{medalLabels[vi]}</span>
@@ -192,7 +462,7 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
                 {pr&&<div style={{marginTop:5}}><PremioBadge pr={pr} big={isFirst}/></div>}
               </div>
 
-              {/* Avatar com glow */}
+              {/* Avatar */}
               <div style={{position:'relative',marginBottom:0,zIndex:5}}>
                 {isFirst&&<div style={{position:'absolute',inset:-12,background:`radial-gradient(ellipse,${GOLD}44 0%,transparent 70%)`,animation:'glowPulse 2s ease-in-out infinite',borderRadius:'50%',zIndex:-1}}/>}
                 <Av name={a.name} size={avSz} ring={ring} glow={isFirst}/>
@@ -200,16 +470,12 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
                 <div style={{position:'absolute',bottom:-10,left:'50%',transform:'translateX(-50%)',background:`linear-gradient(135deg,${ring},${ring}88)`,color:'#000',borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:13,boxShadow:`0 0 12px ${ring}`,zIndex:6}}>{rankNums[vi]}</div>
               </div>
 
-              {/* Coluna do pódio */}
-              <div style={{marginTop:18,width:'100%',height:colH,position:'relative',borderRadius:'10px 10px 0 0',overflow:'hidden',animation:`growUp 0.9s cubic-bezier(0.34,1.0,0.64,1) ${delay+100}ms both`}}>
-                {/* Gradiente da coluna */}
-                <div style={{position:'absolute',inset:0,background:isFirst?`linear-gradient(180deg,${GOLD}22 0%,#141200 40%,#080800 100%)`:`linear-gradient(180deg,rgba(30,30,30,0.9) 0%,rgba(8,8,8,0.98) 100%)`,border:`1px solid ${isFirst?GOLD+'66':'#2a2a2a'}`,borderBottom:'none'}}>
-                  {/* Linha brilhante no topo da coluna */}
+              {/* Coluna */}
+              <div style={{marginTop:18,width:'100%',height:colH,position:'relative',borderRadius:'10px 10px 0 0',overflow:'hidden',animation:`growUp ${MT.reveal} cubic-bezier(0.34,1.0,0.64,1) ${delay+100}ms both`}}>
+                <div style={{position:'absolute',inset:0,background:isFirst?`linear-gradient(180deg,${GOLD}22 0%,#141200 40%,#080800 100%)`:`linear-gradient(180deg,rgba(30,30,30,0.9) 0%,rgba(8,8,8,0.98) 100%)`,border:`1px solid ${isFirst?GOLD+'66':'#2a2a2a'}`,borderBottom:'none',backdropFilter:'blur(4px)'}}>
                   <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${ring}cc,transparent)`}}/>
-                  {/* Reflexo diagonal */}
                   <div style={{position:'absolute',top:0,left:'-20%',width:'40%',height:'100%',background:'linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.03) 50%,transparent 60%)',pointerEvents:'none'}}/>
                 </div>
-                {/* Conteúdo da coluna */}
                 <div style={{position:'relative',zIndex:2,height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'16px 8px',gap:8}}>
                   <div style={{display:'flex',gap:isFirst?18:12}}>
                     <div style={{textAlign:'center'}}>
@@ -239,19 +505,18 @@ function PodiumView({top5,deltas,cardRefs,podiumKey}){
   );
 }
 
-// Mini coluna para 4º e 5º lugar
 function MiniPodCol({a,rank,delay}){
   const ring=rank===3?'#6b7280':'#4b5563';
   const pr=premio(a);
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:'100%',animation:`riseUp 0.7s cubic-bezier(0.34,1.2,0.64,1) ${delay}ms both`}}>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:'100%',animation:`riseUp ${MT.slow} ${MT.springMd} ${delay}ms both`}}>
       <div style={{textAlign:'center',marginBottom:6,padding:'0 2px'}}>
         <div style={{color:'#666',fontWeight:800,fontSize:9,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:80}}>{a.name.split(' ')[0]}</div>
         <div style={{color:'#333',fontSize:8}}>{rank+1}º</div>
         {pr&&<div style={{fontSize:10}}>{pr.icon}</div>}
       </div>
       <Av name={a.name} size={40} ring={ring}/>
-      <div style={{width:'100%',height:140,background:'linear-gradient(180deg,rgba(22,22,22,0.9) 0%,rgba(6,6,6,0.98) 100%)',border:`1px solid ${ring}33`,borderBottom:'none',borderRadius:'6px 6px 0 0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'8px 4px',marginTop:10,animation:`growUp 0.8s cubic-bezier(0.34,1.0,0.64,1) ${delay+100}ms both`}}>
+      <div style={{width:'100%',height:140,background:'linear-gradient(180deg,rgba(22,22,22,0.9) 0%,rgba(6,6,6,0.98) 100%)',border:`1px solid ${ring}33`,borderBottom:'none',borderRadius:'6px 6px 0 0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'8px 4px',marginTop:10,animation:`growUp ${MT.slow} cubic-bezier(0.34,1.0,0.64,1) ${delay+100}ms both`,backdropFilter:'blur(4px)'}}>
         <div style={{color:'#aaa',fontSize:18,fontWeight:800}}>{a.R1}</div>
         <div style={{color:'#555',fontSize:7,letterSpacing:1}}>R1</div>
         <div style={{color:ring,fontWeight:700,fontSize:11,marginTop:4}}>{a.pts}</div>
@@ -276,12 +541,24 @@ function TabRanking({records,loading}){
   useEffect(()=>{const prevOrder=prevRankOrder.current;if(prevOrder.length>0){const nd={};rank.forEach((a,ni)=>{const oi=prevOrder.indexOf(a.code);if(oi!==-1&&oi!==ni)nd[a.code]=oi-ni;});if(Object.keys(nd).length>0){setDeltas(nd);setTimeout(()=>setDeltas({}),3000);}}prevRankOrder.current=rank.map(a=>a.code);},[records]);
 
   useLayoutEffect(()=>{Object.keys(cardRefs.current).forEach(code=>{const el=cardRefs.current[code];if(el)snapshots.current[code]=el.getBoundingClientRect().top;});});
-  useLayoutEffect(()=>{Object.keys(cardRefs.current).forEach(code=>{const el=cardRefs.current[code],prevTop=snapshots.current[code];if(!el||prevTop==null)return;const delta=prevTop-el.getBoundingClientRect().top;if(Math.abs(delta)>2){el.style.transition='none';el.style.transform=`translateY(${delta}px)`;requestAnimationFrame(()=>{el.style.transition='transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94)';el.style.transform='translateY(0)';});}});},[records]);
+  useLayoutEffect(()=>{Object.keys(cardRefs.current).forEach(code=>{const el=cardRefs.current[code],prevTop=snapshots.current[code];if(!el||prevTop==null)return;const delta=prevTop-el.getBoundingClientRect().top;if(Math.abs(delta)>2){el.style.transition='none';el.style.transform=`translateY(${delta}px)`;requestAnimationFrame(()=>{el.style.transition=`transform ${MT.slow} ${MT.ease}`;el.style.transform='translateY(0)';});}});},[records]);
 
   const totalR1=rank.reduce((s,a)=>s+a.R1,0),totalR2=rank.reduce((s,a)=>s+a.R2,0),totalVenda=rank.reduce((s,a)=>s+a.Venda,0);
   const ating=ASSESSORS.length*META.R1>0?Math.round((totalR1/(ASSESSORS.length*META.R1))*100):0;
+  const isFirstLoad=loading&&records.length===0;
 
-  if(loading&&records.length===0)return(<div style={{textAlign:'center',padding:80}}><div style={{fontSize:40,animation:'spin 1s linear infinite',display:'inline-block'}}>✨</div><div style={{color:'#444',marginTop:12,letterSpacing:2,fontSize:12}}>CARREGANDO...</div></div>);
+  if(isFirstLoad)return(
+    <div style={{maxWidth:780,margin:'0 auto',padding:'24px 0'}}>
+      <SkeletonMetrics/>
+      <div style={{...CARD,height:580,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16}}>
+        <div style={{fontSize:40,animation:'spin 1s linear infinite',display:'inline-block'}}>✨</div>
+        <div style={{color:'#333',letterSpacing:2,fontSize:12}}>CARREGANDO RANKING...</div>
+        <div style={{display:'flex',gap:8}}>
+          {[0,1,2].map(i=>(<Skeleton key={i} w={60} h={60} radius={50} style={{animationDelay:`${i*0.15}s`}}/>))}
+        </div>
+      </div>
+    </div>
+  );
 
   return(
     <div style={{maxWidth:780,margin:'0 auto',padding:'24px 0'}}>
@@ -293,13 +570,7 @@ function TabRanking({records,loading}){
           {label:'VENDAS',       val:totalVenda,color:'#10b981',icon:'💰'},
           {label:'ATINGIMENTO',  val:ating+'%', color:ating>=80?'#22c55e':ating>=50?'#eab308':'#ef4444',icon:'🎯'},
         ].map(m=>(
-          <div key={m.label} style={{...CARD,textAlign:'center',padding:'18px 10px',transition:'transform .3s,box-shadow .3s',cursor:'default'}}
-            onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.05) translateY(-3px)';e.currentTarget.style.boxShadow=`0 8px 32px ${m.color}22`;}}
-            onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}>
-            <div style={{fontSize:22,marginBottom:6}}>{m.icon}</div>
-            <div style={{color:'#444',fontSize:10,letterSpacing:2,marginBottom:8}}>{m.label}</div>
-            <div style={{color:m.color,fontSize:36,fontWeight:900,lineHeight:1,textShadow:`0 0 20px ${m.color}44`}}>{m.val}</div>
-          </div>
+          <MetricCard key={m.label} label={m.label} val={m.val} color={m.color} icon={m.icon} loading={false}/>
         ))}
       </div>
 
@@ -312,11 +583,11 @@ function TabRanking({records,loading}){
           <div style={{display:'flex',gap:5}}>
             {Array.from({length:TOTAL_SLIDES}).map((_,i)=>(
               <button key={i} onClick={()=>{setSlide(i);setSlideKey(k=>k+1);setPaused(true);setTimeout(()=>setPaused(false),9000);}}
-                style={{width:i===slide?24:8,height:8,borderRadius:4,border:'none',cursor:'pointer',background:i===slide?GOLD:'#222',transition:'all .3s',padding:0}}/>
+                style={{width:i===slide?24:8,height:8,borderRadius:4,border:'none',cursor:'pointer',background:i===slide?GOLD:'#222',transition:`all ${MT.normal} ${MT.spring}`,padding:0}}/>
             ))}
           </div>
           <button onClick={()=>setPaused(p=>!p)}
-            style={{background:'#111',border:'1px solid #222',color:'#555',borderRadius:8,padding:'4px 10px',cursor:'pointer',fontSize:13,transition:'color .2s'}}
+            style={{background:'#111',border:'1px solid #222',color:'#555',borderRadius:8,padding:'4px 10px',cursor:'pointer',fontSize:13,transition:`color ${MT.fast} ${MT.ease}`}}
             onMouseEnter={e=>e.currentTarget.style.color=GOLD} onMouseLeave={e=>e.currentTarget.style.color='#555'}>
             {paused?'▶':'⏸'}
           </button>
@@ -328,15 +599,18 @@ function TabRanking({records,loading}){
         <div key={slideKey} style={{height:'100%',background:`linear-gradient(90deg,${GOLD}88,${GOLD})`,borderRadius:2,animation:`slideProgress ${CAROUSEL_INTERVAL}ms linear`}}/>
       </div>}
 
-      {/* ÁREA DO SLIDE */}
+      {/* SLIDE */}
       <div style={{...CARD,padding:0,overflow:'hidden',marginBottom:16}}>
         {slide===0&&<PodiumView key={'podium-'+slideKey} top5={top5} deltas={deltas} cardRefs={cardRefs} podiumKey={slideKey}/>}
         {slide>0&&top5[slide-1]&&<SpotlightCard key={'spot-'+slideKey} a={top5[slide-1]} rank={slide-1} deltas={deltas}/>}
       </div>
 
       {/* VER TODOS */}
-      <div style={CARD}>
-        <button onClick={()=>setShowAll(p=>!p)} style={{background:'none',border:'none',color:'#444',fontSize:12,cursor:'pointer',letterSpacing:1,padding:'4px 0',width:'100%',textAlign:'left',transition:'color .2s'}} onMouseEnter={e=>e.currentTarget.style.color=GOLD} onMouseLeave={e=>e.currentTarget.style.color='#444'}>
+      <GlassCard glowColor={GOLD} style={{padding:'12px 16px'}}>
+        <button onClick={()=>setShowAll(p=>!p)}
+          style={{background:'none',border:'none',color:'#444',fontSize:12,cursor:'pointer',letterSpacing:1,padding:'4px 0',width:'100%',textAlign:'left',transition:`color ${MT.fast} ${MT.ease}`}}
+          onMouseEnter={e=>e.currentTarget.style.color=GOLD}
+          onMouseLeave={e=>e.currentTarget.style.color='#444'}>
           {showAll?'▲ OCULTAR':'▼ VER TODOS OS '+rank.length+' ASSESSORES'}
         </button>
         {showAll&&(
@@ -346,9 +620,15 @@ function TabRanking({records,loading}){
               const podColors=[GOLD,SILVER,BRONZE];
               return(
                 <div key={a.code} ref={el=>cardRefs.current[a.code]=el}
-                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 6px',borderBottom:'1px solid #141414',transition:'background .15s',borderRadius:6,background:i<3?`${podColors[i]}06`:''}}
-                  onMouseEnter={e=>e.currentTarget.style.background=i<3?`${podColors[i]}12`:'rgba(212,175,55,0.04)'}
-                  onMouseLeave={e=>e.currentTarget.style.background=i<3?`${podColors[i]}06`:''}>  
+                  style={{
+                    display:'flex',alignItems:'center',gap:10,
+                    padding:'9px 6px',borderBottom:'1px solid #141414',
+                    borderRadius:6,
+                    background:i<3?`${podColors[i]}06`:'',
+                    transition:`background ${MT.fast} ${MT.ease}, transform ${MT.fast} ${MT.ease}`,
+                  }}
+                  onMouseEnter={e=>{e.currentTarget.style.background=i<3?`${podColors[i]}12`:'rgba(212,175,55,0.04)';e.currentTarget.style.transform='translateX(3px)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background=i<3?`${podColors[i]}06`:'';e.currentTarget.style.transform='translateX(0)';}}>
                   <span style={{color:i<3?podColors[i]:'#2a2a2a',fontSize:i<3?15:12,minWidth:28,textAlign:'center',fontWeight:i<3?800:400}}>{i<3?['🥇','🥈','🥉'][i]:i+1}</span>
                   <Av name={a.name} size={34} ring={i<3?podColors[i]:a.color}/>
                   <div style={{flex:1,minWidth:0}}>
@@ -369,7 +649,7 @@ function TabRanking({records,loading}){
             })}
           </div>
         )}
-      </div>
+      </GlassCard>
     </div>
   );
 }
@@ -380,7 +660,7 @@ function TabAoVivo({records,countdown,lastUpdate,load,loading,error}){
   const updStr=lastUpdate?lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'--';
   return(
     <div style={{maxWidth:580,margin:'0 auto',padding:'24px 0'}}>
-      <div style={{...CARD,marginBottom:16}}>
+      <GlassCard glowColor='#10b981' style={{marginBottom:16}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <span style={{width:10,height:10,borderRadius:'50%',background:'#10b981',display:'inline-block',animation:'livePulse 1.2s ease-in-out infinite'}}/>
@@ -394,19 +674,31 @@ function TabAoVivo({records,countdown,lastUpdate,load,loading,error}){
               </div>
               <span style={{color:GOLD,fontSize:12,fontWeight:700,minWidth:20}}>{countdown}s</span>
             </div>
-            <button onClick={()=>load(false)} disabled={loading} style={{background:'#111',border:'1px solid #222',color:loading?'#2a2a2a':'#666',borderRadius:8,padding:'5px 12px',cursor:loading?'default':'pointer',fontSize:13}}>{loading?'⏳':'↻'}</button>
+            <button onClick={()=>load(false)} disabled={loading}
+              style={{background:'#111',border:'1px solid #222',color:loading?'#2a2a2a':'#666',borderRadius:8,padding:'5px 12px',cursor:loading?'default':'pointer',fontSize:13,transition:`color ${MT.fast} ${MT.ease}`}}>
+              {loading?'⏳':'↻'}
+            </button>
           </div>
         </div>
-      </div>
+      </GlassCard>
       {error&&<div style={{...CARD,background:'#ef444410',border:'1px solid #ef444440',color:'#ef4444',fontSize:13,marginBottom:16}}>⚠️ {error}</div>}
       <div style={{color:'#444',fontSize:11,letterSpacing:2,marginBottom:12}}>ÚLTIMOS REGISTROS</div>
       {recent.length===0&&!loading&&<div style={{...CARD,textAlign:'center',color:'#2a2a2a',padding:40,fontSize:13}}>Nenhum registro ainda</div>}
       {recent.map((r,i)=>{
         const a=ASSESSORS.find(x=>x.code===r.code),tc=r.type==='R1'?'#3b82f6':r.type==='R2'?'#eab308':'#10b981',isNew=i===0;
         return(
-          <div key={r.id||i} style={{...CARD,marginBottom:8,display:'flex',alignItems:'center',gap:12,animation:isNew?'slideIn 0.4s ease-out':'none',borderColor:isNew?tc+'44':'#1f1f1f',boxShadow:isNew?`0 0 24px ${tc}22`:'none'}}>
+          <div key={r.id||i} style={{
+            ...CARD,marginBottom:8,display:'flex',alignItems:'center',gap:12,
+            animation:isNew?`slideIn ${MT.normal} ${MT.easeOut}`:'none',
+            borderColor:isNew?tc+'44':'rgba(255,255,255,0.06)',
+            boxShadow:isNew?`0 0 24px ${tc}22, inset 0 1px 0 rgba(255,255,255,0.04)`:'0 4px 24px rgba(0,0,0,0.5)',
+            transition:`box-shadow ${MT.slow} ${MT.ease}`,
+          }}>
             <Av name={r.name||'?'} size={36} ring={a?a.color:'#222'}/>
-            <div style={{flex:1}}><div style={{color:'#e5e7eb',fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:.5}}>{r.name}</div><div style={{color:'#444',fontSize:11}}>{r.squad} · {fmt(r.ts)}</div></div>
+            <div style={{flex:1}}>
+              <div style={{color:'#e5e7eb',fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:.5}}>{r.name}</div>
+              <div style={{color:'#444',fontSize:11}}>{r.squad} · {fmt(r.ts)}</div>
+            </div>
             <span style={{background:tc+'22',border:'1px solid '+tc,color:tc,borderRadius:99,padding:'3px 12px',fontSize:12,fontWeight:700}}>{r.type}</span>
             <div style={{color:GOLD,fontWeight:800,fontSize:15,minWidth:55,textAlign:'right'}}>+{PTS[r.type]||0} pts</div>
           </div>
@@ -429,13 +721,36 @@ function TabLogin({onLogin}){
         <h1 style={{margin:'8px 0 4px',color:GOLD,fontSize:24,letterSpacing:3,fontWeight:800,textShadow:`0 0 24px ${GOLD}55`}}>INSURANCE DAY</h1>
         <p style={{color:'#444',fontSize:12,margin:0,letterSpacing:1}}>CAMPANHA 4-4-2 · JUNHO &amp; JULHO 2026</p>
       </div>
-      <div style={CARD}>
+      <GlassCard glowColor={GOLD}>
         <label style={{display:'block',color:'#444',fontSize:11,marginBottom:8,letterSpacing:2}}>CÓDIGO XP OU NOME</label>
-        <input autoFocus value={q} onChange={e=>{setQ(e.target.value);setSel(null);}} onKeyDown={e=>e.key==='Enter'&&go()} placeholder="Ex: A98943 ou Israel Gusso" style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #1f1f1f',background:'rgba(4,4,4,0.9)',color:'#e5e7eb',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
-        {list.length>0&&(<div style={{marginTop:4,borderRadius:8,border:'1px solid #1a1a1a',background:'rgba(4,4,4,0.98)',overflow:'hidden'}}>{list.map(a=>(<button key={a.code} onClick={()=>pick(a)} style={{width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #1a1a1a',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><Av name={a.name} size={32} ring={a.color}/><div><div style={{color:'#e5e7eb',fontSize:13,fontWeight:600,textTransform:'uppercase',letterSpacing:.5}}>{a.name}</div><div style={{color:'#444',fontSize:11}}>{a.code} · {a.squad}</div></div></button>))}</div>)}
+        <input autoFocus value={q} onChange={e=>{setQ(e.target.value);setSel(null);}} onKeyDown={e=>e.key==='Enter'&&go()} placeholder="Ex: A98943 ou Israel Gusso"
+          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(4,4,4,0.9)',color:'#e5e7eb',fontSize:14,outline:'none',boxSizing:'border-box',transition:`border-color ${MT.fast} ${MT.ease}`}}
+          onFocus={e=>e.target.style.borderColor=GOLD+'66'}
+          onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.08)'}/>
+        {list.length>0&&(
+          <div style={{marginTop:4,borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(4,4,4,0.98)',overflow:'hidden',backdropFilter:'blur(8px)'}}>
+            {list.map(a=>(
+              <button key={a.code} onClick={()=>pick(a)}
+                style={{width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #1a1a1a',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:10,transition:`background ${MT.fast} ${MT.ease}`}}
+                onMouseEnter={e=>e.currentTarget.style.background=`${a.color}18`}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <Av name={a.name} size={32} ring={a.color}/>
+                <div>
+                  <div style={{color:'#e5e7eb',fontSize:13,fontWeight:600,textTransform:'uppercase',letterSpacing:.5}}>{a.name}</div>
+                  <div style={{color:'#444',fontSize:11}}>{a.code} · {a.squad}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
         {err&&<div style={{color:'#ef4444',fontSize:12,marginTop:8}}>{err}</div>}
-        <button onClick={go} style={{marginTop:16,width:'100%',padding:'13px',background:`linear-gradient(135deg,${GOLD},#b8960c)`,border:'none',borderRadius:8,color:'#000',fontWeight:800,fontSize:15,cursor:'pointer',letterSpacing:2,boxShadow:`0 4px 24px ${GOLD}55`,transition:'transform .15s,box-shadow .15s'}} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 8px 32px ${GOLD}77`;}} onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 4px 24px ${GOLD}55`;}}>ENTRAR →</button>
-      </div>
+        <button onClick={go}
+          style={{marginTop:16,width:'100%',padding:'13px',background:`linear-gradient(135deg,${GOLD},#b8960c)`,border:'none',borderRadius:8,color:'#000',fontWeight:800,fontSize:15,cursor:'pointer',letterSpacing:2,boxShadow:`0 4px 24px ${GOLD}55`,transition:`transform ${MT.fast} ${MT.spring}, box-shadow ${MT.fast} ${MT.ease}`}}
+          onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 8px 32px ${GOLD}77`;}}
+          onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 4px 24px ${GOLD}55`;}}>
+          ENTRAR →
+        </button>
+      </GlassCard>
     </div>
   );
 }
@@ -453,33 +768,48 @@ function TabRegistrar({user,records,add,onLogout}){
     <div style={{maxWidth:500,margin:'0 auto',padding:'24px 0'}}>
       {toast&&<Toast msg={toast.msg} ok={toast.ok} pts={toast.pts}/>}
       {floatPts&&<FloatingPts pts={floatPts} color={lastType==='Venda'?'#10b981':lastType==='R2'?'#eab308':'#3b82f6'}/>}
-      <div style={{...CARD,marginBottom:16,display:'flex',alignItems:'center',gap:14,justifyContent:'space-between'}}>
-        <div style={{display:'flex',alignItems:'center',gap:12}}><Av name={user.name} size={46} ring={user.color} glow/><div><div style={{color:'#e5e7eb',fontWeight:800,fontSize:16,textTransform:'uppercase',letterSpacing:1}}>{user.name}</div><div style={{color:'#444',fontSize:12}}>{user.squad} · {user.code}</div></div></div>
-        <button onClick={onLogout} style={{background:'#ef444420',border:'1px solid #ef444440',color:'#ef4444',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12,fontWeight:700}}>SAIR</button>
-      </div>
-      <div style={{...CARD,marginBottom:16,textAlign:'center'}}>
+
+      <GlassCard glowColor={user.color} style={{marginBottom:16,display:'flex',alignItems:'center',gap:14,justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <Av name={user.name} size={46} ring={user.color} glow/>
+          <div>
+            <div style={{color:'#e5e7eb',fontWeight:800,fontSize:16,textTransform:'uppercase',letterSpacing:1}}>{user.name}</div>
+            <div style={{color:'#444',fontSize:12}}>{user.squad} · {user.code}</div>
+          </div>
+        </div>
+        <button onClick={onLogout}
+          style={{background:'#ef444420',border:'1px solid #ef444440',color:'#ef4444',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12,fontWeight:700,transition:`all ${MT.fast} ${MT.ease}`}}
+          onMouseEnter={e=>{e.currentTarget.style.background='#ef444430';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='#ef444420';}}>
+          SAIR
+        </button>
+      </GlassCard>
+
+      <GlassCard glowColor={GOLD} style={{marginBottom:16,textAlign:'center'}}>
         <div style={{color:'#444',fontSize:11,letterSpacing:2,marginBottom:4}}>SEUS PONTOS</div>
         <div style={{color:GOLD,fontSize:56,fontWeight:900,lineHeight:1,textShadow:`0 0 30px ${GOLD}77`}}>{animPts}</div>
         {pr&&<div style={{marginTop:12}}><PremioBadge pr={pr} big/></div>}
-      </div>
-      <div style={{...CARD,marginBottom:16}}>
+      </GlassCard>
+
+      <GlassCard style={{marginBottom:16}}>
         <div style={{color:'#444',fontSize:11,letterSpacing:2,marginBottom:14}}>PROGRESSO 4-4-2</div>
         {[{type:'R1',val:myR1,max:4,color:'#3b82f6'},{type:'R2',val:myR2,max:4,color:'#eab308'},{type:'Venda',val:myV,max:2,color:'#10b981'}].map(m=>(
           <div key={m.type} style={{marginBottom:12}}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><span style={{color:'#aaa',fontSize:13}}>{m.type}</span><span style={{color:m.color,fontWeight:800,fontSize:13}}>{m.val} / {m.max}</span></div>
             <div style={{background:'#1a1a1a',borderRadius:6,height:10,overflow:'hidden',position:'relative'}}>
-              <div style={{width:Math.min(100,(m.val/m.max)*100)+'%',height:'100%',background:`linear-gradient(90deg,${m.color}88,${m.color})`,borderRadius:6,transition:'width .7s cubic-bezier(0.34,1.56,0.64,1)',boxShadow:`0 0 14px ${m.color}`}}/>
+              <div style={{width:Math.min(100,(m.val/m.max)*100)+'%',height:'100%',background:`linear-gradient(90deg,${m.color}88,${m.color})`,borderRadius:6,transition:`width ${MT.reveal} ${MT.spring}`,boxShadow:`0 0 14px ${m.color}`}}/>
               {m.val>=m.max&&<div style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',fontSize:12}}>✅</div>}
             </div>
           </div>
         ))}
-      </div>
+      </GlassCard>
+
       <div style={{color:'#444',fontSize:11,letterSpacing:2,textAlign:'center',marginBottom:12}}>REGISTRAR</div>
       <div style={{display:'flex',gap:12,marginBottom:16}}>
         {BTNS.map(b=>(
           <button key={b.type} disabled={saving} onClick={()=>reg(b.type)}
-            style={{flex:1,padding:'20px 8px',borderRadius:14,background:b.color+'18',border:'2px solid '+b.color,color:'#fff',cursor:saving?'not-allowed':'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:6,opacity:saving?0.5:1,transition:'all .2s',backdropFilter:'blur(4px)'}}
-            onMouseEnter={e=>{if(!saving){e.currentTarget.style.transform='translateY(-5px) scale(1.05)';e.currentTarget.style.boxShadow=`0 10px 28px ${b.color}55`;e.currentTarget.style.background=b.color+'30';}}}
+            style={{flex:1,padding:'20px 8px',borderRadius:14,background:b.color+'18',border:'2px solid '+b.color,color:'#fff',cursor:saving?'not-allowed':'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:6,opacity:saving?0.5:1,transition:`all ${MT.normal} ${MT.spring}`,backdropFilter:'blur(4px)'}}
+            onMouseEnter={e=>{if(!saving){e.currentTarget.style.transform='translateY(-6px) scale(1.06)';e.currentTarget.style.boxShadow=`0 12px 32px ${b.color}55`;e.currentTarget.style.background=b.color+'30';}}}
             onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';e.currentTarget.style.background=b.color+'18';}}>
             <span style={{fontSize:30}}>{saving&&lastType===b.type?'⏳':b.type==='R1'?'📅':b.type==='R2'?'✅':'💰'}</span>
             <span style={{fontWeight:800,fontSize:16,color:b.color,letterSpacing:1}}>{b.label}</span>
@@ -488,7 +818,22 @@ function TabRegistrar({user,records,add,onLogout}){
           </button>
         ))}
       </div>
-      {mine.length>0&&(<div style={CARD}><div style={{color:'#444',fontSize:11,letterSpacing:2,marginBottom:12}}>SEUS REGISTROS</div>{[...mine].sort((a,b)=>b.ts-a.ts).slice(0,8).map((r,i)=>{const b=BTNS.find(x=>x.type===r.type);return(<div key={i} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #141414',alignItems:'center',animation:i===0?'slideIn 0.4s ease-out':'none'}}><span style={{color:b?b.color:'#aaa',fontSize:13,fontWeight:700}}>{r.type}</span><span style={{color:'#333',fontSize:11}}>{fmt(r.ts)}</span><span style={{color:GOLD,fontWeight:800,fontSize:12}}>+{PTS[r.type]} pts</span></div>);})}</div>)}
+
+      {mine.length>0&&(
+        <GlassCard>
+          <div style={{color:'#444',fontSize:11,letterSpacing:2,marginBottom:12}}>SEUS REGISTROS</div>
+          {[...mine].sort((a,b)=>b.ts-a.ts).slice(0,8).map((r,i)=>{
+            const b=BTNS.find(x=>x.type===r.type);
+            return(
+              <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #141414',alignItems:'center',animation:i===0?`slideIn ${MT.normal} ${MT.easeOut}`:'none'}}>
+                <span style={{color:b?b.color:'#aaa',fontSize:13,fontWeight:700}}>{r.type}</span>
+                <span style={{color:'#333',fontSize:11}}>{fmt(r.ts)}</span>
+                <span style={{color:GOLD,fontWeight:800,fontSize:12}}>+{PTS[r.type]} pts</span>
+              </div>
+            );
+          })}
+        </GlassCard>
+      )}
     </div>
   );
 }
@@ -519,25 +864,46 @@ export default function App(){
         @keyframes riseUp     {from{opacity:0;transform:translateY(60px) scale(0.85)}to{opacity:1;transform:translateY(0) scale(1)}}
         @keyframes growUp     {from{transform:scaleY(0);transform-origin:bottom}to{transform:scaleY(1);transform-origin:bottom}}
         @keyframes shimmer    {0%{background-position:-200% center}100%{background-position:200% center}}
+        @keyframes tabFadeUp  {from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes kpiPop     {0%{transform:scale(0.7);opacity:0}80%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
       `}</style>
       <RockyBg/>
       <div style={{position:'relative',zIndex:1,padding:'0 16px',maxWidth:820,margin:'0 auto'}}>
         <div style={{padding:'14px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:`1px solid ${GOLD}22`}}>
           <span style={{color:GOLD,fontWeight:800,fontSize:17,letterSpacing:3,textShadow:`0 0 24px ${GOLD}55`}}>🛡️ INSURANCE DAY</span>
-          {user&&(<div style={{display:'flex',alignItems:'center',gap:8}}><Av name={user.name} size={26} ring={user.color}/><span style={{color:'#666',fontSize:12,textTransform:'uppercase',letterSpacing:1}}>{user.name.split(' ')[0]}</span></div>)}
+          {user&&(
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <Av name={user.name} size={26} ring={user.color}/>
+              <span style={{color:'#666',fontSize:12,textTransform:'uppercase',letterSpacing:1}}>{user.name.split(' ')[0]}</span>
+            </div>
+          )}
         </div>
         <div style={{display:'flex',gap:4,padding:'8px 0',borderBottom:`1px solid ${GOLD}11`,marginBottom:4}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>{if(t.id==='registrar'&&!user){setTab('login');return;}setTab(t.id);}}
-              style={{padding:'8px 20px',borderRadius:8,border:'none',cursor:'pointer',fontWeight:700,fontSize:12,letterSpacing:1,transition:'all .15s',background:tab===t.id?GOLD+'22':'transparent',color:tab===t.id?GOLD:'#444',borderBottom:tab===t.id?`2px solid ${GOLD}`:'2px solid transparent'}}
-            >{t.label}</button>
+            <button key={t.id}
+              onClick={()=>{if(t.id==='registrar'&&!user){setTab('login');return;}setTab(t.id);}}
+              style={{
+                padding:'8px 20px',borderRadius:8,border:'none',cursor:'pointer',
+                fontWeight:700,fontSize:12,letterSpacing:1,
+                background:tab===t.id?GOLD+'22':'transparent',
+                color:tab===t.id?GOLD:'#444',
+                borderBottom:tab===t.id?`2px solid ${GOLD}`:'2px solid transparent',
+                transition:`all ${MT.normal} ${MT.ease}`,
+                position:'relative',
+              }}
+              onMouseEnter={e=>{if(tab!==t.id)e.currentTarget.style.color='#888';}}
+              onMouseLeave={e=>{if(tab!==t.id)e.currentTarget.style.color='#444';}}>
+              {t.label}
+            </button>
           ))}
         </div>
-        {tab==='login'    &&<TabLogin onLogin={login}/>}
-        {tab==='ranking'  &&<TabRanking records={kv.records} loading={kv.loading}/>}
-        {tab==='ao-vivo'  &&<TabAoVivo records={kv.records} countdown={kv.countdown} lastUpdate={kv.lastUpdate} load={kv.load} loading={kv.loading} error={kv.error}/>}
-        {tab==='registrar'&&user  &&<TabRegistrar user={user} records={kv.records} add={kv.add} onLogout={logout}/>}
-        {tab==='registrar'&&!user &&<TabLogin onLogin={login}/>}
+        <TabView tabKey={tab}>
+          {tab==='login'    &&<TabLogin onLogin={login}/>}
+          {tab==='ranking'  &&<TabRanking records={kv.records} loading={kv.loading}/>}
+          {tab==='ao-vivo'  &&<TabAoVivo records={kv.records} countdown={kv.countdown} lastUpdate={kv.lastUpdate} load={kv.load} loading={kv.loading} error={kv.error}/>}
+          {tab==='registrar'&&user  &&<TabRegistrar user={user} records={kv.records} add={kv.add} onLogout={logout}/>}
+          {tab==='registrar'&&!user &&<TabLogin onLogin={login}/>}
+        </TabView>
       </div>
     </>
   );
