@@ -2,11 +2,11 @@ import React,{useEffect,useRef,useState} from 'react';
 import {SEPTEMBER_CAMPAIGN as CAMPAIGN} from './campaignConfig.js';
 
 const SCENES=[
-  {eyebrow:'CAMPANHA DE SETEMBRO',title:['O CEO','ENDOIDOU.'],sub:'Setembro começou. Agora a produção vale mais.'},
+  {eyebrow:'SETEMBRO · MÊS DO SEGURO',title:['MÊS DO','SEGURO'],reward:'O CEO ENDOIDOU',sub:'Setembro começou. Agora a produção vale mais.'},
   {eyebrow:'META 01',title:['3 REUNIÕES','AGENDADAS'],reward:'R$ 100',sub:'Bateu três agendamentos, desbloqueou.'},
   {eyebrow:'META 02',title:['1 REUNIÃO','REALIZADA'],reward:'R$ 200',sub:'Uma reunião realizada. Recompensa imediata.'},
   {eyebrow:'META 03',title:['1 VENDA'],reward:'50% DE COMISSÃO',sub:'Fechou uma venda? O jogo muda.'},
-  {eyebrow:'SETEMBRO 2026',title:['AGORA É','PRODUÇÃO.'],sub:'A mesa virou. Entre na campanha.'},
+  {eyebrow:'SETEMBRO 2026',title:['AGORA É','PRODUÇÃO.'],sub:'O Mês do Seguro está valendo. Entre na campanha.'},
 ];
 
 function startSoundtrack(){
@@ -41,7 +41,7 @@ function startSoundtrack(){
 function speakIntro(){
   if(!('speechSynthesis' in window))return;
   window.speechSynthesis.cancel();
-  const text='Setembro começou. O CEO endoidou. Três reuniões agendadas, cem reais. Uma reunião realizada, duzentos reais. Uma venda, cinquenta por cento de comissão. Agora é produção.';
+  const text='Setembro começou. Bem-vindos ao Mês do Seguro. O CEO endoidou. Três reuniões agendadas, cem reais. Uma reunião realizada, duzentos reais. Uma venda, cinquenta por cento de comissão. Agora é produção.';
   const utter=new SpeechSynthesisUtterance(text);
   utter.lang='pt-BR';utter.rate=.96;utter.pitch=.9;utter.volume=.92;
   window.speechSynthesis.speak(utter);
@@ -108,7 +108,7 @@ export default function CampaignIntroCinematic({onClose}){
   }
 
   const current=SCENES[scene];
-  return <div className="cinematic-intro" role="dialog" aria-modal="true" aria-label="Abertura da campanha O CEO Endoidou">
+  return <div className="cinematic-intro" role="dialog" aria-modal="true" aria-label={`Abertura da campanha ${CAMPAIGN.name}`}>
     <canvas ref={canvasRef} className="cinematic-canvas"/>
     <div className="cinematic-grid"/><div className="cinematic-beam cinematic-beam-a"/><div className="cinematic-beam cinematic-beam-b"/><div className="cinematic-vignette"/>
     <header className="cinematic-topbar"><div><span className="cinematic-brand-dot"/>EUROSTOCK · INSURANCE DAY</div><button onClick={enableSound}>{soundOn?'🔊 SOM ATIVO':'🔇 ATIVAR SOM'}</button></header>
@@ -121,6 +121,6 @@ export default function CampaignIntroCinematic({onClose}){
       {scene===4&&<button className="cinematic-enter" onClick={onClose}>ENTRAR NA CAMPANHA <span>→</span></button>}
     </main>
     <div className="cinematic-timeline"><div className="cinematic-progress" style={{width:`${((scene+1)/SCENES.length)*100}%`}}/>{SCENES.map((_,i)=><span key={i} className={i<=scene?'active':''}/>)}</div>
-    <footer className="cinematic-footer"><span>O CEO ENDOIDOU · SETEMBRO 2026</span><button onClick={onClose}>PULAR ABERTURA →</button></footer>
+    <footer className="cinematic-footer"><span>{CAMPAIGN.name.toUpperCase()} · {CAMPAIGN.slogan.toUpperCase()} · SETEMBRO 2026</span><button onClick={onClose}>PULAR ABERTURA →</button></footer>
   </div>;
 }
