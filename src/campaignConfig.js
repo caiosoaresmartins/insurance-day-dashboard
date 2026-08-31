@@ -7,8 +7,8 @@ export const SEPTEMBER_CAMPAIGN = {
   timezone: 'America/Sao_Paulo',
   commissionLabel: '50% DE COMISSÃO',
   rewards: [
-    { id:'agenda', type:'R1', goal:3, title:'MESA AQUECENDO', rule:'3 reuniões agendadas', reward:'PRÊMIO SURPRESA', icon:'⚡' },
-    { id:'realizada', type:'R2', goal:1, title:'JOGO NA MESA', rule:'1 reunião realizada', reward:'PRÊMIO SURPRESA', icon:'◆' },
+    { id:'agenda', type:'R1', goal:3, title:'MESA AQUECENDO', rule:'3 reuniões agendadas', reward:'R$ 100', icon:'⚡' },
+    { id:'realizada', type:'R2', goal:1, title:'JOGO NA MESA', rule:'1 reunião realizada', reward:'R$ 200', icon:'◆' },
     { id:'venda', type:'Venda', goal:1, title:'A MESA VIROU', rule:'1 venda', reward:'50% DE COMISSÃO', icon:'♛' },
   ],
 };
