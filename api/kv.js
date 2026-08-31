@@ -1,6 +1,7 @@
 const LEGACY_KEY = 'insurance_records_2026';
 const STREAM_KEY = 'insurance_records_2026_v2';
 const VALID_TYPES = new Set(['R1','R2','Venda']);
+const BUSINESS_TIMEZONE = 'America/Sao_Paulo';
 
 const ASSESSORS = [
   ['A73614','Bruno Bruel','Alavancados'],['A26347','Guilherme Monticelli','Alavancados'],['A38636','Hellen Carvalho','Alavancados'],['A38548','Igor Bairros','Alavancados'],['A96379','Leonardo Vacca','Alavancados'],['A51532','Nicolas Mallmann','Alavancados'],['A26305','Pedro Couto','Alavancados'],['A27267','Rodrigo Lisboa','Alavancados'],['A27321','Vitória Vidor','Alavancados'],['A42881','Ygor Walter','Alavancados'],
@@ -45,6 +46,22 @@ async function allRecords() {
   return [...legacy,...stream].filter(record=>record?.id && !seen.has(record.id) && seen.add(record.id)).sort((a,b)=>(a.ts||0)-(b.ts||0));
 }
 
+function monthKeyInBusinessTimezone(ts) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date(ts));
+  const year = parts.find(part=>part.type==='year')?.value;
+  const month = parts.find(part=>part.type==='month')?.value;
+  return `${year}-${month}`;
+}
+
+function currentProductionRecords(records) {
+  const currentMonth = monthKeyInBusinessTimezone(Date.now());
+  return records.filter(record=>record?.ts && monthKeyInBusinessTimezone(record.ts)===currentMonth);
+}
+
 function adminAuthorized(req) {
   const secret = process.env.ADMIN_SECRET;
   if (!secret) return false;
@@ -64,7 +81,12 @@ export default async function handler(req,res) {
   }
 
   try {
-    if (req.method === 'GET') return res.status(200).json({records:await allRecords()});
+    if (req.method === 'GET') {
+      const records = await allRecords();
+      const scope = String(req.query?.scope || 'current').toLowerCase();
+      if (scope === 'all') return res.status(200).json({records,scope:'all'});
+      return res.status(200).json({records:currentProductionRecords(records),scope:'current',timezone:BUSINESS_TIMEZONE});
+    }
 
     if (req.method === 'POST') {
       const {action,record} = req.body || {};
