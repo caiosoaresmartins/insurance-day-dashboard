@@ -9,7 +9,10 @@ const SCENES=[
   {eyebrow:'SETEMBRO 2026',title:['AGORA É','PRODUÇÃO.'],sub:'O Mês do Seguro está valendo. Acompanhe a campanha em tempo real.'},
 ];
 
-function startSoundtrack(){
+const SCENE_MS=2500;
+const LOOP_MS=SCENES.length*SCENE_MS;
+
+function createSoundtrackCycle(){
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
   if(!AudioCtx)return null;
   const ctx=new AudioCtx();
@@ -38,6 +41,15 @@ function startSoundtrack(){
   return ctx;
 }
 
+function startSoundtrackLoop(){
+  let ctx=createSoundtrackCycle();
+  const timer=setInterval(()=>{
+    ctx?.close?.().catch?.(()=>{});
+    ctx=createSoundtrackCycle();
+  },LOOP_MS);
+  return {close(){clearInterval(timer);ctx?.close?.().catch?.(()=>{});}};
+}
+
 function speakIntro(){
   if(!('speechSynthesis' in window))return;
   window.speechSynthesis.cancel();
@@ -55,12 +67,12 @@ export default function CampaignIntroCinematic({onClose,onFollow}){
 
   useEffect(()=>{
     document.documentElement.dataset.campaignIntro='true';
-    const timers=[2500,5000,7500,10000].map((ms,i)=>setTimeout(()=>setScene(i+1),ms));
+    const timer=setInterval(()=>setScene(current=>(current+1)%SCENES.length),SCENE_MS);
     return()=>{
-      timers.forEach(clearTimeout);
+      clearInterval(timer);
       delete document.documentElement.dataset.campaignIntro;
       window.speechSynthesis?.cancel();
-      audioRef.current?.close?.().catch?.(()=>{});
+      audioRef.current?.close?.();
     };
   },[]);
 
@@ -69,7 +81,7 @@ export default function CampaignIntroCinematic({onClose,onFollow}){
     const ctx=canvas.getContext('2d');let raf=0;let width=0;let height=0;let dpr=1;let last=performance.now();
     const motes=[];const sparks=[];
     const burstTimes=[700,2500,5000,7500,10000,11700];
-    let started=performance.now();let burstIndex=0;
+    let started=performance.now();let burstIndex=0;let cycleIndex=-1;
 
     function resize(){
       dpr=Math.min(window.devicePixelRatio||1,2.5);width=window.innerWidth;height=window.innerHeight;
@@ -88,7 +100,10 @@ export default function CampaignIntroCinematic({onClose,onFollow}){
     }
     function draw(now){
       const dt=Math.min(.035,(now-last)/1000);last=now;
-      const elapsed=now-started;
+      const totalElapsed=now-started;
+      const nextCycle=Math.floor(totalElapsed/LOOP_MS);
+      if(nextCycle!==cycleIndex){cycleIndex=nextCycle;burstIndex=0;}
+      const elapsed=totalElapsed%LOOP_MS;
       while(burstIndex<burstTimes.length&&elapsed>=burstTimes[burstIndex]){burst();burstIndex++;}
       ctx.clearRect(0,0,width,height);
       const glow=ctx.createRadialGradient(width*.5,height*.45,0,width*.5,height*.45,Math.max(width,height)*.62);
@@ -103,7 +118,7 @@ export default function CampaignIntroCinematic({onClose,onFollow}){
 
   function enableSound(){
     if(soundOn)return;
-    setSoundOn(true);audioRef.current=startSoundtrack();speakIntro();
+    setSoundOn(true);audioRef.current=startSoundtrackLoop();speakIntro();
   }
 
   const current=SCENES[scene];
