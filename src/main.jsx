@@ -6,6 +6,7 @@ import IntelligencePanel from './IntelligencePanel.jsx';
 import SeptemberCampaign from './SeptemberCampaign.jsx';
 import './global.css';
 import './campaign-layout.css';
+import './campaign-entry.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
