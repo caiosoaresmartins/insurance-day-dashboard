@@ -6,7 +6,7 @@ const SCENES=[
   {eyebrow:'META 01',title:['3 REUNIÕES','AGENDADAS'],reward:'R$ 100',sub:'Bateu três agendamentos, desbloqueou.'},
   {eyebrow:'META 02',title:['1 REUNIÃO','REALIZADA'],reward:'R$ 200',sub:'Uma reunião realizada. Recompensa imediata.'},
   {eyebrow:'META 03',title:['1 VENDA'],reward:'50% DE COMISSÃO',sub:'Fechou uma venda? O jogo muda.'},
-  {eyebrow:'SETEMBRO 2026',title:['AGORA É','PRODUÇÃO.'],sub:'O Mês do Seguro está valendo. Entre na campanha.'},
+  {eyebrow:'SETEMBRO 2026',title:['AGORA É','PRODUÇÃO.'],sub:'O Mês do Seguro está valendo. Acompanhe a campanha em tempo real.'},
 ];
 
 function startSoundtrack(){
@@ -47,7 +47,7 @@ function speakIntro(){
   window.speechSynthesis.speak(utter);
 }
 
-export default function CampaignIntroCinematic({onClose}){
+export default function CampaignIntroCinematic({onClose,onFollow}){
   const[scene,setScene]=useState(0);
   const[soundOn,setSoundOn]=useState(false);
   const canvasRef=useRef(null);
@@ -56,14 +56,13 @@ export default function CampaignIntroCinematic({onClose}){
   useEffect(()=>{
     document.documentElement.dataset.campaignIntro='true';
     const timers=[2500,5000,7500,10000].map((ms,i)=>setTimeout(()=>setScene(i+1),ms));
-    const end=setTimeout(onClose,13800);
     return()=>{
-      timers.forEach(clearTimeout);clearTimeout(end);
+      timers.forEach(clearTimeout);
       delete document.documentElement.dataset.campaignIntro;
       window.speechSynthesis?.cancel();
       audioRef.current?.close?.().catch?.(()=>{});
     };
-  },[onClose]);
+  },[]);
 
   useEffect(()=>{
     const canvas=canvasRef.current;if(!canvas)return;
@@ -118,9 +117,9 @@ export default function CampaignIntroCinematic({onClose}){
       <h1>{current.title.map((line,i)=><span key={line} className={i===current.title.length-1?'accent':''}>{line}</span>)}</h1>
       {current.reward&&<div className="cinematic-reward">{current.reward}</div>}
       <p>{current.sub}</p>
-      {scene===4&&<button className="cinematic-enter" onClick={onClose}>ENTRAR NA CAMPANHA <span>→</span></button>}
+      {scene===4&&<button className="cinematic-enter" onClick={onFollow}>ACOMPANHE A CAMPANHA <span>→</span></button>}
     </main>
     <div className="cinematic-timeline"><div className="cinematic-progress" style={{width:`${((scene+1)/SCENES.length)*100}%`}}/>{SCENES.map((_,i)=><span key={i} className={i<=scene?'active':''}/>)}</div>
-    <footer className="cinematic-footer"><span>{CAMPAIGN.name.toUpperCase()} · {CAMPAIGN.slogan.toUpperCase()} · SETEMBRO 2026</span><button onClick={onClose}>PULAR ABERTURA →</button></footer>
+    <footer className="cinematic-footer"><span>{CAMPAIGN.name.toUpperCase()} · {CAMPAIGN.slogan.toUpperCase()} · SETEMBRO 2026</span><div className="cinematic-footer-actions"><button onClick={onClose}>ENTRAR NO DASHBOARD</button><button className="cinematic-follow" onClick={onFollow}>ACOMPANHE →</button></div></footer>
   </div>;
 }
