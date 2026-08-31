@@ -19,9 +19,9 @@ export default function SeptemberCampaign(){
   const selected=byAdvisor[userCode]||null;
   return <>
     {showIntro&&<CampaignIntroCinematic onClose={closeIntro}/>} 
-    <button className="campaign-launcher" onClick={()=>setOpen(true)}>⚡ CEO Endoidou</button>
+    <button className="campaign-launcher" onClick={()=>setOpen(true)}>🛡️ Mês do Seguro</button>
     {open&&<div className="campaign-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="campaign-panel campaign-panel-v2">
-      <header><div><small>{CAMPAIGN.eyebrow}</small><h2>{CAMPAIGN.name}</h2><p>Produção de setembro · metas rápidas e recompensa imediata</p></div><button onClick={()=>setOpen(false)}>✕</button></header>
+      <header><div><small>{CAMPAIGN.eyebrow}</small><h2>{CAMPAIGN.name}</h2><p>{CAMPAIGN.slogan} · produção de setembro · metas rápidas e recompensa imediata</p></div><button onClick={()=>setOpen(false)}>✕</button></header>
       <div className="campaign-v2-layout">
         <main className="campaign-v2-main">
           <div className="campaign-rule-grid campaign-rule-grid-v2">{CAMPAIGN.rewards.map(rule=><article key={rule.id}><span>{rule.icon}</span><small>{rule.title}</small><h3>{rule.rule}</h3><b>{rule.reward}</b></article>)}</div>
@@ -29,11 +29,11 @@ export default function SeptemberCampaign(){
           {selected?<div className="campaign-progress campaign-progress-v2"><div><strong>{selected.name}</strong><span>{selected.squad}</span></div>{CAMPAIGN.rewards.map(rule=>{const current=selected[rule.type]||0;const done=current>=rule.goal;return <article key={rule.id} className={done?'done':''}><div><span>{rule.icon}</span><div><b>{rule.rule}</b><small>{done?'DESBLOQUEADO':`${current}/${rule.goal}`}</small></div></div><strong>{done?rule.reward:'EM PROGRESSO'}</strong></article>})}</div>:<div className="campaign-empty-state"><strong>Selecione um assessor</strong><span>Veja quanto falta para desbloquear cada prêmio.</span></div>}
         </main>
         <aside className="campaign-v2-side">
-          <div className="campaign-leaderboard"><h3>Quem virou a mesa</h3>{advisors.length?advisors.slice(0,8).map((a,i)=><div key={a.code}><em>{i+1}</em><span><b>{a.name}</b><small>{a.squad}</small></span><strong>{a.Venda>0?'50% comissão':a.R2>0?'R$ 200':a.R1>=3?'R$ 100':'Em jogo'}</strong></div>):<p className="campaign-no-data">Produção zerada. O jogo começa em setembro.</p>}</div>
+          <div className="campaign-leaderboard"><h3>Destaques do Mês do Seguro</h3>{advisors.length?advisors.slice(0,8).map((a,i)=><div key={a.code}><em>{i+1}</em><span><b>{a.name}</b><small>{a.squad}</small></span><strong>{a.Venda>0?'50% comissão':a.R2>0?'R$ 200':a.R1>=3?'R$ 100':'Em jogo'}</strong></div>):<p className="campaign-no-data">Produção zerada. O Mês do Seguro começa agora.</p>}</div>
           <div className="campaign-summary-card"><small>REGRA DA CAMPANHA</small><strong>3 → 1 → 1</strong><span>3 agendadas · 1 realizada · 1 venda</span></div>
         </aside>
       </div>
-      <footer><button onClick={replayIntro}>▶ REVER ABERTURA</button><span>Campanha válida em setembro de 2026</span></footer>
+      <footer><button onClick={replayIntro}>▶ REVER ABERTURA</button><span>Mês do Seguro · setembro de 2026</span></footer>
     </section></div>}
   </>;
 }
