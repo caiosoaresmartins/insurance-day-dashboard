@@ -1,0 +1,14 @@
+export const SEPTEMBER_CAMPAIGN = {
+  id: '2026-09-mesa-endoidou',
+  name: 'A Mesa Endoidou',
+  eyebrow: 'CAMPANHA DE SETEMBRO',
+  start: '2026-09-01T00:00:00-03:00',
+  end: '2026-09-30T23:59:59-03:00',
+  timezone: 'America/Sao_Paulo',
+  commissionLabel: '50% DE COMISSÃO',
+  rewards: [
+    { id:'agenda', type:'R1', goal:3, title:'MESA AQUECENDO', rule:'3 reuniões agendadas', reward:'PRÊMIO SURPRESA', icon:'⚡' },
+    { id:'realizada', type:'R2', goal:1, title:'JOGO NA MESA', rule:'1 reunião realizada', reward:'PRÊMIO SURPRESA', icon:'◆' },
+    { id:'venda', type:'Venda', goal:1, title:'A MESA VIROU', rule:'1 venda', reward:'50% DE COMISSÃO', icon:'♛' },
+  ],
+};
