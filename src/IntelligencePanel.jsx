@@ -18,7 +18,7 @@ export default function IntelligencePanel(){
   async function load(){
     setLoading(true);
     try{
-      const [kr,ar]=await Promise.all([fetch('/api/kv',{cache:'no-store'}),fetch('/api/assessors')]);
+      const [kr,ar]=await Promise.all([fetch('/api/kv?scope=all',{cache:'no-store'}),fetch('/api/assessors')]);
       const [kd,ad]=await Promise.all([kr.json(),ar.json()]);
       setRecords(Array.isArray(kd.records)?kd.records:[]);setAssessors(Array.isArray(ad.assessors)?ad.assessors:[]);
     }catch(error){console.error('[intelligence]',error);}finally{setLoading(false);}
@@ -54,7 +54,7 @@ export default function IntelligencePanel(){
           <article className="intel-card"><h3>Ranking dos squads <small>pts / assessor</small></h3>{stats.squadRank.map((s,i)=><div className="rank-line" key={s.name}><em>{i+1}</em><span>{s.name}</span><b>{s.perAdvisor}</b></div>)}</article>
           <article className="intel-card"><h3>Próximos da meta</h3>{stats.near.map(a=><div className="near-line" key={a.code}><div><strong>{a.name}</strong><small>{a.squad}</small></div><span>{a.missingR1?`${a.missingR1} R1 `:''}{a.missingR2?`${a.missingR2} R2 `:''}{a.missingVenda?`${a.missingVenda} Venda`:''}</span></div>)}</article>
         </div>
-        <footer>{loading?'Atualizando…':`Atualização automática · ${assessors.length} pessoas na base`}</footer>
+        <footer>{loading?'Atualizando…':`Atualização automática · ${assessors.length} pessoas na base · histórico preservado`}</footer>
       </section>
     </div>}
   </>;
