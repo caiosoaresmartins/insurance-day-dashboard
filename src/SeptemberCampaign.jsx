@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {SEPTEMBER_CAMPAIGN as CAMPAIGN} from './campaignConfig.js';
+import VideoCampaignIntro from './VideoCampaignIntro.jsx';
 
 function useCampaignRecords(){
   const[records,setRecords]=useState([]);
@@ -15,7 +16,7 @@ function synthSting(){
   setTimeout(()=>ctx.close(),1800);
 }
 
-function Intro({onClose}){
+function AnimatedIntro({onClose}){
   const[step,setStep]=useState(0);const[muted,setMuted]=useState(true);const canvasRef=useRef(null);
   useEffect(()=>{const timers=[650,1500,2700,3900].map((ms,i)=>setTimeout(()=>setStep(i+1),ms));return()=>timers.forEach(clearTimeout);},[]);
   useEffect(()=>{if(!muted)synthSting();},[muted]);
@@ -30,13 +31,18 @@ function Intro({onClose}){
 }
 
 export default function SeptemberCampaign(){
-  const records=useCampaignRecords();const[showIntro,setShowIntro]=useState(()=>sessionStorage.getItem('sep-intro-seen')!=='1');const[open,setOpen]=useState(false);const[userCode,setUserCode]=useState('');
-  const closeIntro=()=>{sessionStorage.setItem('sep-intro-seen','1');setShowIntro(false)};
+  const records=useCampaignRecords();
+  const[showIntro,setShowIntro]=useState(()=>sessionStorage.getItem('sep-intro-seen')!=='1');
+  const[introMode,setIntroMode]=useState('video');
+  const[open,setOpen]=useState(false);const[userCode,setUserCode]=useState('');
+  const closeIntro=()=>{sessionStorage.setItem('sep-intro-seen','1');setShowIntro(false);setIntroMode('video')};
+  const replayIntro=()=>{setOpen(false);sessionStorage.removeItem('sep-intro-seen');setIntroMode('video');setShowIntro(true)};
   const byAdvisor=useMemo(()=>{const m={};records.forEach(r=>{const a=m[r.code]||(m[r.code]={code:r.code,name:r.name,squad:r.squad,R1:0,R2:0,Venda:0});if(a[r.type]!=null)a[r.type]++;});return m;},[records]);
   const advisors=Object.values(byAdvisor).sort((a,b)=>b.Venda-a.Venda||b.R2-a.R2||b.R1-a.R1);
   const selected=byAdvisor[userCode]||null;
   return <>
-    {showIntro&&<Intro onClose={closeIntro}/>} 
+    {showIntro&&introMode==='video'&&<VideoCampaignIntro onClose={closeIntro} onFallback={()=>setIntroMode('animated')}/>} 
+    {showIntro&&introMode==='animated'&&<AnimatedIntro onClose={closeIntro}/>} 
     <button className="campaign-launcher" onClick={()=>setOpen(true)}>⚡ CEO Endoidou</button>
     {open&&<div className="campaign-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="campaign-panel campaign-panel-v2">
       <header><div><small>{CAMPAIGN.eyebrow}</small><h2>{CAMPAIGN.name}</h2><p>Produção de setembro · metas rápidas e recompensa imediata</p></div><button onClick={()=>setOpen(false)}>✕</button></header>
@@ -51,7 +57,7 @@ export default function SeptemberCampaign(){
           <div className="campaign-summary-card"><small>REGRA DA CAMPANHA</small><strong>3 → 1 → 1</strong><span>3 agendadas · 1 realizada · 1 venda</span></div>
         </aside>
       </div>
-      <footer><button onClick={()=>{setOpen(false);setShowIntro(true);sessionStorage.removeItem('sep-intro-seen')}}>▶ REVER ABERTURA</button><span>Campanha válida em setembro de 2026</span></footer>
+      <footer><button onClick={replayIntro}>▶ REVER ABERTURA</button><span>Campanha válida em setembro de 2026</span></footer>
     </section></div>}
   </>;
 }
