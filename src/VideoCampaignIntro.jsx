@@ -1,6 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-
-const VIDEO_SRC='/campaigns/2026/setembro/abertura-tv.mp4';
+import {CEO_CAMPAIGN_VIDEO} from './campaignVideoData.js';
 
 function playOriginalSoundtrack(){
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
@@ -40,11 +39,14 @@ export default function VideoCampaignIntro({onClose,onFallback}){
   const audioCtxRef=useRef(null);
 
   useEffect(()=>{
+    document.documentElement.dataset.campaignIntro='true';
     const v=videoRef.current;
-    if(!v)return;
-    const p=v.play();
-    if(p?.catch)p.catch(()=>{});
-    return()=>{window.speechSynthesis?.cancel();audioCtxRef.current?.close?.().catch?.(()=>{});};
+    if(v){const p=v.play();if(p?.catch)p.catch(()=>{});}
+    return()=>{
+      delete document.documentElement.dataset.campaignIntro;
+      window.speechSynthesis?.cancel();
+      audioCtxRef.current?.close?.().catch?.(()=>{});
+    };
   },[]);
 
   function enableSound(){
@@ -62,7 +64,7 @@ export default function VideoCampaignIntro({onClose,onFallback}){
   if(failed)return null;
 
   return <div className="campaign-video-intro" role="dialog" aria-modal="true" aria-label="Abertura da campanha O CEO Endoidou">
-    <video ref={videoRef} src={VIDEO_SRC} autoPlay muted playsInline preload="auto" onEnded={onClose} onError={fail}/>
+    <video ref={videoRef} src={CEO_CAMPAIGN_VIDEO} autoPlay muted playsInline preload="auto" onEnded={onClose} onError={fail}/>
     <div className="campaign-video-shade"/>
     <div className="campaign-video-topbar"><span>CAMPANHA DE SETEMBRO · EUROSTOCK</span><button onClick={enableSound}>{audioOn?'🔊 SOM ATIVO':'🔇 ATIVAR SOM'}</button></div>
     <div className="campaign-video-actions"><button className="campaign-video-primary" onClick={enableSound}>{audioOn?'TRILHA ATIVA':'ATIVAR SOM'}</button><button onClick={onClose}>PULAR ABERTURA →</button></div>
