@@ -1,24 +1,31 @@
 # 🛡️ Insurance Day Dashboard
 
-Dashboard de ranking da **Campanha 4-4-2** da Eurostock.
-Reuneões agendadas (R1), realizadas (R2) e vendas pontuadas em tempo real.
+Dashboard de performance comercial da Eurostock para R1, R2 e vendas, com ranking em tempo real, visão gerencial, fullscreen e Modo TV.
 
 ## Como rodar
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
-Abre em `http://localhost:3000`
+O Vite informa a URL local no terminal, normalmente `http://localhost:5173`.
 
-## Como usar
+## Funcionalidades
 
-1. **Login** — o assessor digita seu código XP ou nome
-2. **Registrar** — clica em R1, R2 ou Venda (um clique só)
-3. **Ranking** — veja o pódio atualizado na hora
+- Ranking individual em tempo real
+- Registro de R1, R2 e Venda
+- Ranking por squads e pontos por assessor
+- Funil R1 → R2 → Venda
+- Conversão R1 → R2 e R2 → Venda
+- Próximos da meta
+- Alertas de baixa atividade e gargalos
+- Filtro mensal no painel Intelligence
+- Tela cheia real pelo navegador
+- Modo TV
+- Lista oficial de assessores sincronizada com Notion, com fallback local
 
-## Pontuação
+## Pontuação atual
 
 | Tipo | Pontos | Meta |
 |------|--------|------|
@@ -26,22 +33,39 @@ Abre em `http://localhost:3000`
 | R2 — Reunião Realizada | 50 pts | 4 |
 | Venda | 100 pts | 2 |
 
-## Premiação
+## Premiação atual
 
 - 🥉 4 R1 → **R$ 150**
 - 🥈 4 R1 + 4 R2 → **R$ 300**
 - 🥇 4 R1 + 4 R2 + 2 Vendas → **R$ 500**
 
-## Squads
+## Base oficial de assessores
 
-- 🔵 Alavancados (10)
-- 🟤 Los Hermanos (4)
-- 🟣 Advisors (3)
-- 🟠 Outliers (4)
-- 🟢 Anywhere (2)
-- ⚙️ Áreas Operacionais (6)
+A fonte oficial é o banco **👥 Assessores — Eurostock** no Notion. O endpoint `/api/assessors` consulta essa base quando `NOTION_KEY` está configurada e usa uma lista de fallback com 32 cadastros caso o Notion esteja temporariamente indisponível.
 
-## Dados
+Squads atuais:
 
-Todos os registros ficam em `localStorage` do navegador.
-Sem backend, sem Notion, sem login externo.
+- 🔵 Alavancados — 10
+- 🟤 Los Hermanos — 7
+- 🟣 Advisors — 3
+- 🟠 Outliers — 4
+- 🟢 Anywhere — 2
+- ⚙️ Operacionais — 6
+
+## Persistência e segurança
+
+Os registros são persistidos via Vercel Functions em `/api/kv` usando Upstash. Novos lançamentos usam uma lista atômica para evitar perda de dados em gravações simultâneas. Código do assessor e tipo de evento são validados no servidor. A limpeza total exige `ADMIN_SECRET` enviado no header `X-Admin-Secret`.
+
+Variáveis esperadas na Vercel:
+
+```text
+KV_REST_API_URL
+KV_REST_API_TOKEN
+NOTION_KEY
+ADMIN_SECRET
+APP_ORIGIN (opcional)
+```
+
+## Deploy
+
+O projeto está conectado ao GitHub e à Vercel. Branches geram Preview Deployments automaticamente; `main` é a branch de produção.
