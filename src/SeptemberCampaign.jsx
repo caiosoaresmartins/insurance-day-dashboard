@@ -10,15 +10,16 @@ function useCampaignRecords(){
 
 export default function SeptemberCampaign(){
   const records=useCampaignRecords();
-  const[showIntro,setShowIntro]=useState(()=>sessionStorage.getItem('sep-intro-seen')!=='1');
+  const[showIntro,setShowIntro]=useState(true);
   const[open,setOpen]=useState(false);const[userCode,setUserCode]=useState('');
-  const closeIntro=()=>{sessionStorage.setItem('sep-intro-seen','1');setShowIntro(false)};
-  const replayIntro=()=>{setOpen(false);sessionStorage.removeItem('sep-intro-seen');setShowIntro(true)};
+  const enterDashboard=()=>setShowIntro(false);
+  const followCampaign=()=>{setShowIntro(false);setOpen(true)};
+  const replayIntro=()=>{setOpen(false);setShowIntro(true)};
   const byAdvisor=useMemo(()=>{const m={};records.forEach(r=>{const a=m[r.code]||(m[r.code]={code:r.code,name:r.name,squad:r.squad,R1:0,R2:0,Venda:0});if(a[r.type]!=null)a[r.type]++;});return m;},[records]);
   const advisors=Object.values(byAdvisor).sort((a,b)=>b.Venda-a.Venda||b.R2-a.R2||b.R1-a.R1);
   const selected=byAdvisor[userCode]||null;
   return <>
-    {showIntro&&<CampaignIntroCinematic onClose={closeIntro}/>} 
+    {showIntro&&<CampaignIntroCinematic onClose={enterDashboard} onFollow={followCampaign}/>} 
     <button className="campaign-launcher" onClick={()=>setOpen(true)}>🛡️ Mês do Seguro</button>
     {open&&<div className="campaign-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="campaign-panel campaign-panel-v2">
       <header><div><small>{CAMPAIGN.eyebrow}</small><h2>{CAMPAIGN.name}</h2><p>{CAMPAIGN.slogan} · produção de setembro · metas rápidas e recompensa imediata</p></div><button onClick={()=>setOpen(false)}>✕</button></header>
