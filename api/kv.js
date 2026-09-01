@@ -3,6 +3,7 @@ import {ASSESSORS,BUSINESS_TIMEZONE,VALID_TYPES,advisorForCode,requestSession} f
 const LEGACY_KEY='insurance_records_2026';
 const STREAM_KEY='insurance_records_2026_v2';
 const LEDGER_KEY='insurance_campaign_ledger_2026_v3';
+const ACTION_TYPE={add_agendada:'R1',add_realizada:'R2',add_venda:'Venda'};
 
 async function upstash(commands){
   const response=await fetch(process.env.KV_REST_API_URL+'/pipeline',{
@@ -55,6 +56,12 @@ function cors(req,res){
   res.setHeader('Cache-Control','no-store');
 }
 
+function resolveType(action,record){
+  if(ACTION_TYPE[action])return ACTION_TYPE[action];
+  if(action==='add'&&VALID_TYPES.has(record?.type))return record.type;
+  return null;
+}
+
 export default async function handler(req,res){
   cors(req,res);if(req.method==='OPTIONS')return res.status(200).end();
   if(!process.env.KV_REST_API_URL||!process.env.KV_REST_API_TOKEN)return res.status(500).json({error:'KV nao configurado nas env vars da Vercel'});
@@ -73,21 +80,21 @@ export default async function handler(req,res){
     if(req.method==='POST'){
       if(!session)return res.status(401).json({error:'Faça login para continuar'});
       const{action,record,recordId,reason}=req.body||{};
+      const resolvedType=resolveType(action,record);
 
-      if(action==='add'){
-        if(!VALID_TYPES.has(record?.type))return res.status(400).json({error:'Tipo de registro invalido'});
+      if(resolvedType){
         const code=session.role==='admin'?String(record?.code||'').toUpperCase():session.code;
         const assessor=advisorForCode(code);if(!assessor)return res.status(400).json({error:'Codigo de assessor nao autorizado'});
         const ts=Date.now();
         const newRec={
-          id:`${assessor.code}_${record.type}_${ts}_${Math.random().toString(36).slice(2,8)}`,
-          code:assessor.code,name:assessor.name,squad:assessor.squad,type:record.type,ts,
+          id:`${assessor.code}_${resolvedType}_${ts}_${Math.random().toString(36).slice(2,8)}`,
+          code:assessor.code,name:assessor.name,squad:assessor.squad,type:resolvedType,ts,
           campaignId:'2026-09-ceo-endoidou',source:session.role==='admin'?'auditor':'assessor',
           createdBy:session.role==='admin'?'AUDITOR':session.code,status:'active',
         };
-        const event={kind:'record',ts,actor:session.role==='admin'?'AUDITOR':session.code,role:session.role,record:newRec};
+        const event={kind:'record',ts,actor:session.role==='admin'?'AUDITOR':session.code,role:session.role,action,type:resolvedType,record:newRec};
         await upstash([['RPUSH',LEDGER_KEY,JSON.stringify(event)]]);
-        return res.status(200).json({ok:true,record:newRec});
+        return res.status(200).json({ok:true,action,type:resolvedType,record:newRec});
       }
 
       if(action==='delete'){
@@ -99,7 +106,7 @@ export default async function handler(req,res){
         return res.status(200).json({ok:true,event});
       }
 
-      return res.status(400).json({error:'action invalida. Use add ou delete'});
+      return res.status(400).json({error:'action invalida. Use add_agendada, add_realizada, add_venda ou delete'});
     }
     return res.status(405).json({error:'Metodo nao permitido'});
   }catch(error){console.error('[KV error]',error);return res.status(500).json({error:error.message||'Falha no ledger da campanha'});}
