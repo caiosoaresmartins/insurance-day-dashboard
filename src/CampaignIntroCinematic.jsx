@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {SEPTEMBER_CAMPAIGN as CAMPAIGN} from './campaignConfig.js';
 
 const SCENES=[
-  {eyebrow:'SETEMBRO · MÊS DO SEGURO',title:['MÊS DO','SEGURO'],reward:'O CEO ENDOIDOU',sub:'Setembro começou. Agora a produção vale mais.'},
+  {eyebrow:'SETEMBRO · MÊS DO SEGURO',title:['MÊS DO','SEGURO'],reward:'A COMISSÃO TÁ TURBINADA!',sub:'Setembro começou. Agora a produção vale mais.'},
   {eyebrow:'META 01',title:['3 REUNIÕES','AGENDADAS'],reward:'R$ 100',sub:'Bateu três agendamentos, desbloqueou.'},
   {eyebrow:'META 02',title:['1 REUNIÃO','REALIZADA'],reward:'R$ 200',sub:'Uma reunião realizada. Recompensa imediata.'},
   {eyebrow:'META 03',title:['1 VENDA'],reward:'50% DE COMISSÃO',sub:'Fechou uma venda? O jogo muda.'},
@@ -53,7 +53,7 @@ function startSoundtrackLoop(){
 function speakIntro(){
   if(!('speechSynthesis' in window))return;
   window.speechSynthesis.cancel();
-  const text='Setembro começou. Bem-vindos ao Mês do Seguro. O CEO endoidou. Três reuniões agendadas, cem reais. Uma reunião realizada, duzentos reais. Uma venda, cinquenta por cento de comissão. Agora é produção.';
+  const text='Setembro começou. Bem-vindos ao Mês do Seguro. A comissão está turbinada. Três reuniões agendadas, cem reais. Uma reunião realizada, duzentos reais. Uma venda, cinquenta por cento de comissão. Agora é produção.';
   const utter=new SpeechSynthesisUtterance(text);
   utter.lang='pt-BR';utter.rate=.96;utter.pitch=.9;utter.volume=.92;
   window.speechSynthesis.speak(utter);
