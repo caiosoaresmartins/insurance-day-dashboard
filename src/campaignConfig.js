@@ -1,7 +1,7 @@
 export const SEPTEMBER_CAMPAIGN = {
   id: '2026-09-ceo-endoidou',
   name: 'Mês do Seguro',
-  slogan: 'O CEO Endoidou',
+  slogan: 'A comissão tá turbinada!',
   eyebrow: 'SETEMBRO · MÊS DO SEGURO',
   start: '2026-09-01T00:00:00-03:00',
   end: '2026-09-30T23:59:59-03:00',
