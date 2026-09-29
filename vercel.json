@@ -12,5 +12,11 @@
       "memory": 128,
       "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/13o",
+      "destination": "/index.html"
+    }
+  ]
 }
