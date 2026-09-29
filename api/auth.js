@@ -3,11 +3,18 @@ import {advisorForCode,createSession} from './_lib/campaignAuth.js';
 
 const AUDITOR_PIN_SHA256='8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
 
-function validAuditorCredential(value){
+function managerForCredential(value){
   const supplied=String(value||'');
   const hash=crypto.createHash('sha256').update(supplied).digest('hex');
-  if(hash===AUDITOR_PIN_SHA256)return true;
-  return Boolean(process.env.ADMIN_SECRET)&&supplied===String(process.env.ADMIN_SECRET);
+  if(hash===AUDITOR_PIN_SHA256||Boolean(process.env.ADMIN_SECRET)&&supplied===String(process.env.ADMIN_SECRET)){
+    return{id:'manager-primary',name:'Gestor principal'};
+  }
+  const configured=String(process.env.MANAGER_2_PIN||'');
+  const configuredHash=String(process.env.MANAGER_2_PIN_SHA256||'');
+  if((configured&&supplied===configured)||(configuredHash&&hash===configuredHash)){
+    return{id:'manager-secondary',name:'Gestor comercial 2'};
+  }
+  return null;
 }
 
 export default async function handler(req,res){
@@ -21,9 +28,10 @@ export default async function handler(req,res){
   try{
     const {mode='advisor',code,secret}=req.body||{};
     if(mode==='admin'){
-      if(!validAuditorCredential(secret))return res.status(401).json({error:'Credencial de auditor invalida'});
-      const token=createSession({role:'admin',name:'Auditor da Campanha'},8);
-      return res.status(200).json({ok:true,token,user:{role:'admin',name:'Auditor da Campanha'}});
+      const manager=managerForCredential(secret);
+      if(!manager)return res.status(401).json({error:'Credencial de gestor invalida'});
+      const token=createSession({role:'admin',managerId:manager.id,managerName:manager.name,name:manager.name},8);
+      return res.status(200).json({ok:true,token,user:{role:'admin',managerId:manager.id,managerName:manager.name,name:manager.name}});
     }
 
     const advisor=advisorForCode(code);
