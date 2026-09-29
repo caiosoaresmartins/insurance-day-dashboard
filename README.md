@@ -69,3 +69,9 @@ APP_ORIGIN (opcional)
 ## Deploy
 
 O projeto está conectado ao GitHub e à Vercel. Branches geram Preview Deployments automaticamente; `main` é a branch de produção.
+
+## Painel executivo do gestor
+
+O acesso de gestor agora apresenta uma leitura executiva com KPIs, funil R1 → R2 → Venda, evolução dos últimos 14 dias, conversões, efeitos no resultado e ranking por assessor. A auditoria completa continua disponível em uma área operacional recolhível.
+
+O gestor principal permanece compatível com a credencial existente. Para habilitar o segundo gestor, configure `MANAGER_2_PIN` ou `MANAGER_2_PIN_SHA256` nas variáveis da Vercel; a aplicação identifica o perfil como **Gestor comercial 2**.
