@@ -75,3 +75,7 @@ O projeto está conectado ao GitHub e à Vercel. Branches geram Preview Deployme
 O acesso de gestor agora apresenta uma leitura executiva com KPIs, funil R1 → R2 → Venda, evolução dos últimos 14 dias, conversões, efeitos no resultado e ranking por assessor. A auditoria completa continua disponível em uma área operacional recolhível.
 
 O gestor principal permanece compatível com a credencial existente. Para habilitar o segundo gestor, configure `MANAGER_2_PIN` ou `MANAGER_2_PIN_SHA256` nas variáveis da Vercel; a aplicação identifica o perfil como **Gestor comercial 2**.
+
+### Campanha 13º
+
+A nova campanha fica disponível em `/13o` (ou `?campaign=13o`) com uma visão sales-only: vendas, evolução, meta coletiva, ranking e efeitos no resultado. A campanha existente do Mês do Seguro continua na rota principal, sem alteração das métricas de reuniões.
