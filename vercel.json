@@ -17,6 +17,14 @@
     {
       "source": "/13o",
       "destination": "/index.html"
+    },
+    {
+      "source": "/apresentacao",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/presentation",
+      "destination": "/index.html"
     }
   ]
 }
