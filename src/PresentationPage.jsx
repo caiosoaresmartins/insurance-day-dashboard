@@ -3,25 +3,25 @@ import React from 'react';
 const BRL=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
 
 const demoDays=[
-  {label:'18',card:62,insurance:15},
-  {label:'19',card:78,insurance:21},
-  {label:'20',card:91,insurance:27},
-  {label:'21',card:86,insurance:24},
-  {label:'22',card:112,insurance:31},
-  {label:'23',card:126,insurance:36},
-  {label:'24',card:138,insurance:42},
-  {label:'25',card:154,insurance:47},
-  {label:'26',card:143,insurance:44},
-  {label:'27',card:171,insurance:52},
-  {label:'28',card:184,insurance:60},
-  {label:'29',card:201,insurance:67},
-  {label:'30',card:218,insurance:74},
-  {label:'01',card:236,insurance:81}
+  {label:'18',card:0,insurance:0},
+  {label:'19',card:0,insurance:0},
+  {label:'20',card:0,insurance:0},
+  {label:'21',card:0,insurance:0},
+  {label:'22',card:0,insurance:0},
+  {label:'23',card:0,insurance:0},
+  {label:'24',card:0,insurance:0},
+  {label:'25',card:0,insurance:0},
+  {label:'26',card:0,insurance:0},
+  {label:'27',card:0,insurance:0},
+  {label:'28',card:0,insurance:0},
+  {label:'29',card:0,insurance:0},
+  {label:'30',card:0,insurance:0},
+  {label:'01',card:0,insurance:0}
 ];
 
 const acceleratorLevels=[
-  {level:'01',name:'Base',detail:'Entrada na campanha',state:'reached'},
-  {level:'02',name:'Ritmo',detail:'Produção consistente',state:'reached'},
+  {level:'01',name:'Base',detail:'Aguardando primeiros lançamentos',state:'current'},
+  {level:'02',name:'Ritmo',detail:'Produção consistente',state:''},
   {level:'03',name:'Escala',detail:'Crescimento acelerado',state:'current'},
   {level:'04',name:'Máximo',detail:'Maior patamar da campanha',state:''}
 ];
@@ -65,10 +65,10 @@ function ValueChart() {
 
 function Accelerator() {
   return <article className="cgc-presentation-card cgc-presentation-accelerator">
-    <div className="cgc-presentation-card-head"><div><span className="cgc-presentation-kicker">ACELERADOR</span><h2>Leitura do momento</h2></div><span className="cgc-presentation-chip">ESCALA</span></div>
+    <div className="cgc-presentation-card-head"><div><span className="cgc-presentation-kicker">ACELERADOR</span><h2>Leitura do momento</h2></div><span className="cgc-presentation-chip">INÍCIO</span></div>
     <p className="cgc-presentation-muted">A campanha evolui por marcos. O gestor visualiza o patamar atual e o próximo avanço em uma única leitura.</p>
     <div className="cgc-presentation-steps">{acceleratorLevels.map(item=><div key={item.level} className={'cgc-presentation-step '+item.state}><b>{item.level}</b><span><strong>{item.name}</strong><small>{item.detail}</small></span>{item.state==='current'&&<em>ATUAL</em>}</div>)}</div>
-    <div className="cgc-presentation-progress"><span><b>Escala</b><small>Patamar demonstrativo</small></span><strong>72%</strong></div>
+    <div className="cgc-presentation-progress"><span><b>Base</b><small>Aguardando lançamentos</small></span><strong>0%</strong></div>
     <div className="cgc-presentation-progress-track"><i/></div>
   </article>;
 }
@@ -83,16 +83,16 @@ export default function PresentationPage() {
     <main className="cgc-presentation-shell">
       <section className="cgc-presentation-hero">
         <div className="cgc-presentation-hero-copy"><span className="cgc-presentation-kicker">CAMPANHA CROSS SELL · EUROSTOCK</span><h1>Uma visão clara<br/>do que está <em>avançando.</em></h1><p>Apresentação executiva para acompanhar produção, valores e evolução da campanha em uma leitura simples, visual e sofisticada.</p><div className="cgc-presentation-hero-meta"><span><i/>Campanha em andamento</span><span>Atualização gerencial</span></div></div>
-        <div className="cgc-presentation-hero-card"><span className="cgc-presentation-kicker">MOMENTO DA CAMPANHA</span><strong>Escala</strong><small>Patamar demonstrativo do acelerador</small><div className="cgc-presentation-orbit"><i/><i/><i/></div></div>
+        <div className="cgc-presentation-hero-card"><span className="cgc-presentation-kicker">MOMENTO DA CAMPANHA</span><strong>Início</strong><small>Aguardando primeiros lançamentos</small><div className="cgc-presentation-orbit"><i/><i/><i/></div></div>
       </section>
       <section className="cgc-presentation-metrics">
-        <Metric label="VENDAS VÁLIDAS" value="74" detail="produção acumulada" tone="gold"/>
-        <Metric label="VALOR DAS CARTAS" value={BRL.format(1860000)} detail="somatório demonstrativo" tone="gold"/>
-        <Metric label="VALOR DOS SEGUROS" value={BRL.format(242000)} detail="prêmios registrados" tone="violet"/>
-        <Metric label="ASSESSORES ATIVOS" value="12" detail="com produção registrada" tone="violet"/>
+        <Metric label="VENDAS VÁLIDAS" value="0" detail="produção acumulada" tone="gold"/>
+        <Metric label="VALOR DAS CARTAS" value={BRL.format(0)} detail="somatório demonstrativo" tone="gold"/>
+        <Metric label="VALOR DOS SEGUROS" value={BRL.format(0)} detail="prêmios registrados" tone="violet"/>
+        <Metric label="ASSESSORES ATIVOS" value="0" detail="com produção registrada" tone="violet"/>
       </section>
       <section className="cgc-presentation-grid cgc-presentation-main-grid">
-        <article className="cgc-presentation-card cgc-presentation-evolution"><div className="cgc-presentation-card-head"><div><span className="cgc-presentation-kicker">EVOLUÇÃO</span><h2>Valores ao longo da campanha</h2></div><span className="cgc-presentation-chip">14 DIAS</span></div><ValueChart/><div className="cgc-presentation-callout"><strong>+38%</strong><span>crescimento acumulado no valor das cartas no período demonstrativo</span></div></article>
+        <article className="cgc-presentation-card cgc-presentation-evolution"><div className="cgc-presentation-card-head"><div><span className="cgc-presentation-kicker">EVOLUÇÃO</span><h2>Valores ao longo da campanha</h2></div><span className="cgc-presentation-chip">14 DIAS</span></div><ValueChart/><div className="cgc-presentation-callout"><strong>0%</strong><span>Aguardando os primeiros registros para mostrar a evolução da campanha</span></div></article>
         <Accelerator/>
       </section>
       <section className="cgc-presentation-grid cgc-presentation-effects-grid">
