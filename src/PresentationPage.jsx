@@ -78,7 +78,7 @@ export default function PresentationPage() {
     <div className="mseg-bg"/>
     <header className="mseg-header cgc-presentation-header">
       <div className="mseg-brand"><span className="mseg-brand-mark">E</span><div><b>EUROSTOCK</b><small>CGC CROSS SELL · APRESENTAÇÃO</small></div></div>
-      <div className="cgc-presentation-header-actions"><span className="cgc-presentation-public">VISÃO PÚBLICA · DEMONSTRAÇÃO</span><a href="/" className="cgc-presentation-login">Acessar painel →</a></div>
+      <div className="cgc-presentation-header-actions"><span className="cgc-presentation-public">VISÃO PÚBLICA · DEMONSTRAÇÃO</span><a href="/gestor" className="cgc-presentation-login">Acessar painel →</a></div>
     </header>
     <main className="cgc-presentation-shell">
       <section className="cgc-presentation-hero">
@@ -100,7 +100,7 @@ export default function PresentationPage() {
         <article className="cgc-presentation-card cgc-presentation-effect"><span className="cgc-presentation-effect-number">02</span><span className="cgc-presentation-kicker">EFEITO · FOCO</span><h2>O valor certo aparece no lugar certo.</h2><p>Carta e seguro são apresentados separadamente para facilitar comparação, acompanhamento e decisão.</p></article>
         <article className="cgc-presentation-card cgc-presentation-effect"><span className="cgc-presentation-effect-number">03</span><span className="cgc-presentation-kicker">EFEITO · RITMO</span><h2>A evolução vira conversa de resultado.</h2><p>Gráficos simples mostram o movimento da campanha sem excesso de informação ou etapas desnecessárias.</p></article>
       </section>
-      <footer className="cgc-presentation-footer"><div><span className="cgc-presentation-kicker">APRESENTAÇÃO EXECUTIVA</span><p>Esta página usa dados demonstrativos. Os números reais ficam protegidos no painel do gestor.</p></div><a href="/" className="cgc-presentation-login">Abrir painel do gestor →</a></footer>
+      <footer className="cgc-presentation-footer"><div><span className="cgc-presentation-kicker">APRESENTAÇÃO EXECUTIVA</span><p>Esta página usa dados demonstrativos. Os números reais ficam protegidos no painel do gestor.</p></div><a href="/gestor" className="cgc-presentation-login">Abrir painel do gestor →</a></footer>
     </main>
   </div>;
 }
