@@ -11,10 +11,11 @@ import './campaign-audit.css';
 import './manager-dashboard.css';
 import './presentation-page.css';
 
-const isPresentation = window.location.pathname === '/apresentacao' || window.location.pathname === '/presentation' || new URLSearchParams(window.location.search).has('apresentacao');
+const managerPaths = ['/gestor','/painel','/login'];
+const isManager = managerPaths.includes(window.location.pathname) || new URLSearchParams(window.location.search).has('gestor');
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {isPresentation ? <PresentationPage /> : <><CampaignDashboard /><FullscreenControls /></>}
+    {isManager ? <><CampaignDashboard /><FullscreenControls /></> : <PresentationPage />}
   </React.StrictMode>
 );
