@@ -7,6 +7,7 @@ import './campaign-layout.css';
 import './campaign-entry.css';
 import './mes-do-seguro.css';
 import './campaign-audit.css';
+import './manager-dashboard.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
