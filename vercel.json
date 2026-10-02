@@ -25,6 +25,18 @@
     {
       "source": "/presentation",
       "destination": "/index.html"
+    },
+    {
+      "source": "/gestor",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/painel",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
     }
   ]
 }
